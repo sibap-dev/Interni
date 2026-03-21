@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile - PM Internship Scheme</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
+</head>
+<body>
+    <!-- NAVIGATION BAR -->
+    <div class="nav-bar">
+        <div class="nav-brand">
+            <a href="{{ url_for('home') }}">
+                <img src="{{ url_for('static', filename='images/pm_internship_logo_eng.svg') }}" alt="PM Internship Logo">
+            </a>
+        </div>
+        <div class="nav-actions">
+            <div class="user-info">
+                <i class="fas fa-user"></i>
+                <span>Welcome, {{ user_name }}!</span>
+            </div>
+            <a href="{{ url_for('home') }}" class="home-btn">
+                <i class="fas fa-home"></i>
+                Back to Home
+            </a>
+            <a href="{{ url_for('logout') }}" class="logout-btn">
+                <i class="fas fa-sign-out-alt"></i>
+                Logout
+            </a>
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>User Profile</h1>
+            <p>Complete your profile to get personalized internship recommendations</p>
+        </header>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash-message flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- PROFILE ACTION BUTTONS -->
+        <div class="profile-actions" id="profileActions" {% if user and user.profile_completed %}style="display: flex"{% endif %}>
+            <button type="button" class="profile-action-btn edit-profile-btn" id="editProfileBtn" onclick="toggleEditProfile()">
+                Edit Profile
+            </button>
+            <a href="{{ url_for('ats') }}" class="profile-action-btn ats-btn">
+                ATS Matching
+            </a>
+            <!-- 🔧 NEW: CV Download Buttons -->
+    <a href="{{ url_for('download_cv') }}" class="profile-action-btn cv-download-btn">
+        <i class="fas fa-download"></i>
+        Download CV
+    </a>
+    <a href="{{ url_for('preview_cv') }}" class="profile-action-btn cv-preview-btn" target="_blank">
+        <i class="fas fa-eye"></i>
+        Preview CV
+    </a>
+        </div>
+
+        <form id="registrationForm" method="POST" action="{{ url_for('profile') }}" enctype="multipart/form-data"
+              {% if user and user.profile_completed %}class="form-readonly"{% endif %}>
+            
+            <!-- Personal Information Section -->
+            <section class="form-section">
+                <h2>Personal Information</h2>
+                
+                <div class="form-group">
+                    <label for="fullName" class="required">Full Name</label>
+                    <input type="text" id="fullName" name="fullName" value="{{ user.full_name if user and user.full_name else '' }}" required
+                           {% if user and user.profile_completed %}disabled{% endif %}>
+                </div>
+                
+                <div class="form-group">
+                    <label for="fatherName">Father's Name</label>
+                    <input type="text" id="fatherName" name="fatherName" value="{{ user.father_name if user and user.father_name else '' }}"
+                           {% if user and user.profile_completed %}disabled{% endif %}>
+                </div>
+                
+                <div class="form-group">
+                    <label>Gender</label>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="male" name="gender" value="male" 
+                                   {{ 'checked' if user and user.gender == 'male' else '' }}
+                                   {% if user and user.profile_completed %}disabled{% endif %}>
+                            <label for="male">Male</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="female" name="gender" value="female" 
+                                   {{ 'checked' if user and user.gender == 'female' else '' }}
+                                   {% if user and user.profile_completed %}disabled{% endif %}>
+                            <label for="female">Female</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="other" name="gender" value="other" 
+                                   {{ 'checked' if user and user.gender == 'other' else '' }}
+                                   {% if user and user.profile_completed %}disabled{% endif %}>
+                            <label for="other">Other</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="phone" class="required">Phone Number</label>
+                    <div class="otp-container">
+                        <input type="tel" id="phone" name="phone" value="{{ user.phone if user and user.phone else '' }}" required
+                               {% if user and user.profile_completed %}disabled{% endif %}>
+                        <button type="button" class="otp-btn" id="generateOtp" {% if user and user.profile_completed %}disabled{% endif %}>Send OTP</button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="otp" class="required">OTP Verification</label>
+                    <input type="text" id="otp" name="otp" required {% if user and user.profile_completed %}disabled{% endif %}>
+                </div>
+                
+                <div class="form-group location-group">
+                    <div>
+                        <label for="district">District</label>
+                        <select id="district" name="district" {% if user and user.profile_completed %}disabled{% endif %}>
+                            <option value="">Select District</option>
+                            <option value="srikakulam" {{ 'selected' if user and user.district == 'srikakulam' else '' }}>Srikakulam</option>
+                            <option value="vizianagaram" {{ 'selected' if user and user.district == 'vizianagaram' else '' }}>Vizianagaram</option>
+                            <option value="visakhapatnam" {{ 'selected' if user and user.district == 'visakhapatnam' else '' }}>Visakhapatnam</option>
+                            <option value="east-godavari" {{ 'selected' if user and user.district == 'east-godavari' else '' }}>East Godavari</option>
+                            <option value="west-godavari" {{ 'selected' if user and user.district == 'west-godavari' else '' }}>West Godavari</option>
+                            <option value="krishna" {{ 'selected' if user and user.district == 'krishna' else '' }}>Krishna</option>
+                            <option value="guntur" {{ 'selected' if user and user.district == 'guntur' else '' }}>Guntur</option>
+                            <option value="prakasam" {{ 'selected' if user and user.district == 'prakasam' else '' }}>Prakasam</option>
+                            <option value="nellore" {{ 'selected' if user and user.district == 'nellore' else '' }}>Nellore</option>
+                            <option value="chittoor" {{ 'selected' if user and user.district == 'chittoor' else '' }}>Chittoor</option>
+                            <option value="kadapa" {{ 'selected' if user and user.district == 'kadapa' else '' }}>Kadapa</option>
+                            <option value="anantapur" {{ 'selected' if user and user.district == 'anantapur' else '' }}>Anantapur</option>
+                            <option value="kurnool" {{ 'selected' if user and user.district == 'kurnool' else '' }}>Kurnool</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="address">Address</label>
+                        <textarea id="address" name="address" rows="3" {% if user and user.profile_completed %}disabled{% endif %}>{{ user.address if user and user.address else '' }}</textarea>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 🔧 FIXED: Career Objective Section - Pure User Input Only -->
+            <section class="form-section">
+                <h2>Career Objective</h2>
+                
+                <div class="form-group">
+                    <label for="objective">Professional Objective</label>
+                    <textarea id="objective" name="objective" rows="4" 
+                              placeholder="Describe your career goals and what you hope to achieve through this internship..." 
+                              {% if user and user.profile_completed %}disabled{% endif %}>{{ user.career_objective if user and user.career_objective else '' }}</textarea>
+                </div>
+            </section>
+
+            <!-- Education Section -->
+            <section class="form-section">
+                <h2>Education Information</h2>
+                
+                <div class="form-group">
+                    <label for="qualification" class="required">Qualification</label>
+                    <select id="qualification" name="qualification" required {% if user and user.profile_completed %}disabled{% endif %}>
+                        <option value="">Select Qualification</option>
+                        <option value="10th" {{ 'selected' if user and user.qualification == '10th' else '' }}>10th</option>
+                        <option value="12th" {{ 'selected' if user and user.qualification == '12th' else '' }}>12th</option>
+                        <option value="diploma" {{ 'selected' if user and user.qualification == 'diploma' else '' }}>Diploma</option>
+                        <option value="ug" {{ 'selected' if user and user.qualification == 'ug' else '' }}>UG</option>
+                        <option value="pg" {{ 'selected' if user and user.qualification == 'pg' else '' }}>PG</option>
+                        <option value="phd" {{ 'selected' if user and user.qualification == 'phd' else '' }}>PhD</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="qualificationMarks">Marks Obtained in Qualification</label>
+                    <input type="number" id="qualificationMarks" name="qualificationMarks" 
+                           value="{{ user.qualification_marks if user and user.qualification_marks else '' }}" 
+                           min="0" max="100" step="0.01" {% if user and user.profile_completed %}disabled{% endif %}>
+                </div>
+                
+                <div class="form-group">
+                    <label for="course" class="required">Course</label>
+                    <input type="text" id="course" name="course" value="{{ user.course if user and user.course else '' }}" required
+                           {% if user and user.profile_completed %}disabled{% endif %}>
+                </div>
+                
+                <div class="form-group">
+                    <label for="courseMarks">Marks Obtained in Course</label>
+                    <input type="number" id="courseMarks" name="courseMarks" 
+                           value="{{ user.course_marks if user and user.course_marks else '' }}" 
+                           min="0" max="100" step="0.01" {% if user and user.profile_completed %}disabled{% endif %}>
+                </div>
+                
+                <div class="form-group">
+                    <label for="qualificationCertificate">Certificate Upload for Qualification</label>
+                    <input type="file" id="qualificationCertificate" name="qualificationCertificate" class="file-input"
+                           {% if user and user.profile_completed %}disabled{% endif %}>
+                </div>
+            </section>
+
+            <!-- 🔧 FIXED: Skills Section with Technical/Non-Technical Categories -->
+            <section class="form-section">
+                <h2>Skills & Experience</h2>
+                
+                <!-- Area of Interest Dropdown - SEPARATE from Career Objective -->
+                <div class="form-group">
+                    <label for="interest">Area of Interest</label>
+                    <select id="interest" name="interest" {% if user and user.profile_completed %}disabled{% endif %}>
+                        <option value="">Select Area of Interest</option>
+                        <option value="software-development" {{ 'selected' if user and user.area_of_interest == 'software-development' else '' }}>Software Development</option>
+                        <option value="web-development" {{ 'selected' if user and user.area_of_interest == 'web-development' else '' }}>Web Development</option>
+                        <option value="mobile-development" {{ 'selected' if user and user.area_of_interest == 'mobile-development' else '' }}>Mobile App Development</option>
+                        <option value="data-science" {{ 'selected' if user and user.area_of_interest == 'data-science' else '' }}>Data Science</option>
+                        <option value="ai-ml" {{ 'selected' if user and user.area_of_interest == 'ai-ml' else '' }}>Artificial Intelligence & Machine Learning</option>
+                        <option value="cybersecurity" {{ 'selected' if user and user.area_of_interest == 'cybersecurity' else '' }}>Cybersecurity</option>
+                        <option value="cloud-computing" {{ 'selected' if user and user.area_of_interest == 'cloud-computing' else '' }}>Cloud Computing</option>
+                        <option value="digital-marketing" {{ 'selected' if user and user.area_of_interest == 'digital-marketing' else '' }}>Digital Marketing</option>
+                        <option value="ui-ux-design" {{ 'selected' if user and user.area_of_interest == 'ui-ux-design' else '' }}>UI/UX Design</option>
+                        <option value="business-analysis" {{ 'selected' if user and user.area_of_interest == 'business-analysis' else '' }}>Business Analysis</option>
+                        <option value="project-management" {{ 'selected' if user and user.area_of_interest == 'project-management' else '' }}>Project Management</option>
+                        <option value="content-writing" {{ 'selected' if user and user.area_of_interest == 'content-writing' else '' }}>Content Writing</option>
+                        <option value="graphic-design" {{ 'selected' if user and user.area_of_interest == 'graphic-design' else '' }}>Graphic Design</option>
+                        <option value="finance" {{ 'selected' if user and user.area_of_interest == 'finance' else '' }}>Finance</option>
+                        <option value="hr" {{ 'selected' if user and user.area_of_interest == 'hr' else '' }}>Human Resources</option>
+                        <option value="operations" {{ 'selected' if user and user.area_of_interest == 'operations' else '' }}>Operations</option>
+                        <option value="other" {{ 'selected' if user and user.area_of_interest == 'other' else '' }}>Other</option>
+                    </select>
+                </div>
+                
+                <div class="form-group skills-container">
+                    <div>
+                        <!-- 🔧 ENHANCED: Skills with Technical/Non-Technical Categories -->
+                        <label for="skills" class="required">Skills</label>
+                        <div class="multiselect-container">
+                            <div class="multiselect" id="skillsMultiselect" {% if user and user.profile_completed %}style="pointer-events: none; background-color: #f8f9fa;"{% endif %}>Select Skills</div>
+                            <div class="dropdown-content" id="skillsDropdown">
+                                <!-- Technical Skills Section -->
+                                <div style="background-color: #f0f8ff; padding: 8px 15px; font-weight: bold; color: #2c3e50; border-bottom: 2px solid #3498db;">
+                                    💻 Technical Skills
+                                </div>
+                                <label><input type="checkbox" name="skill_react" value="react" {{ 'checked' if user and user.skills and 'react' in user.skills else '' }}>React.js</label>
+                                <label><input type="checkbox" name="skill_python" value="python" {{ 'checked' if user and user.skills and 'python' in user.skills else '' }}>Python</label>
+                                <label><input type="checkbox" name="skill_java" value="java" {{ 'checked' if user and user.skills and 'java' in user.skills else '' }}>Java</label>
+                                <label><input type="checkbox" name="skill_cpp" value="cpp" {{ 'checked' if user and user.skills and 'cpp' in user.skills else '' }}>C++</label>
+                                <label><input type="checkbox" name="skill_html" value="html" {{ 'checked' if user and user.skills and 'html' in user.skills else '' }}>HTML</label>
+                                <label><input type="checkbox" name="skill_css" value="css" {{ 'checked' if user and user.skills and 'css' in user.skills else '' }}>CSS</label>
+                                <label><input type="checkbox" name="skill_javascript" value="javascript" {{ 'checked' if user and user.skills and 'javascript' in user.skills else '' }}>JavaScript</label>
+                                <label><input type="checkbox" name="skill_ai-ml" value="ai-ml" {{ 'checked' if user and user.skills and 'ai-ml' in user.skills else '' }}>AI/ML</label>
+                                <label><input type="checkbox" name="skill_cloud" value="cloud" {{ 'checked' if user and user.skills and 'cloud' in user.skills else '' }}>Cloud Computing</label>
+                                <label><input type="checkbox" name="skill_nodejs" value="nodejs" {{ 'checked' if user and user.skills and 'nodejs' in user.skills else '' }}>Node.js</label>
+                                <label><input type="checkbox" name="skill_database" value="database" {{ 'checked' if user and user.skills and 'database' in user.skills else '' }}>Database (SQL/NoSQL)</label>
+                                <label><input type="checkbox" name="skill_devops" value="devops" {{ 'checked' if user and user.skills and 'devops' in user.skills else '' }}>DevOps</label>
+                                
+                                <!-- Non-Technical Skills Section -->
+                                <div style="background-color: #f0fff0; padding: 8px 15px; font-weight: bold; color: #2c3e50; border-bottom: 2px solid #27ae60; margin-top: 5px;">
+                                    🤝 Non-Technical Skills
+                                </div>
+                                <label><input type="checkbox" name="skill_leadership" value="leadership" {{ 'checked' if user and user.skills and 'leadership' in user.skills else '' }}>Leadership</label>
+                                <label><input type="checkbox" name="skill_communication" value="communication" {{ 'checked' if user and user.skills and 'communication' in user.skills else '' }}>Communication</label>
+                                <label><input type="checkbox" name="skill_digital-marketing" value="digital-marketing" {{ 'checked' if user and user.skills and 'digital-marketing' in user.skills else '' }}>Digital Marketing</label>
+                                <label><input type="checkbox" name="skill_content-writing" value="content-writing" {{ 'checked' if user and user.skills and 'content-writing' in user.skills else '' }}>Content Writing</label>
+                                <label><input type="checkbox" name="skill_project-management" value="project-management" {{ 'checked' if user and user.skills and 'project-management' in user.skills else '' }}>Project Management</label>
+                                <label><input type="checkbox" name="skill_teamwork" value="teamwork" {{ 'checked' if user and user.skills and 'teamwork' in user.skills else '' }}>Teamwork</label>
+                                <label><input type="checkbox" name="skill_problem-solving" value="problem-solving" {{ 'checked' if user and user.skills and 'problem-solving' in user.skills else '' }}>Problem Solving</label>
+                                <label><input type="checkbox" name="skill_analytical" value="analytical" {{ 'checked' if user and user.skills and 'analytical' in user.skills else '' }}>Analytical Thinking</label>
+                            </div>
+                            <div class="selected-items" id="skillsSelected"></div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label for="languages">Languages Known</label>
+                        <div class="multiselect-container">
+                            <div class="multiselect" id="languagesMultiselect" {% if user and user.profile_completed %}style="pointer-events: none; background-color: #f8f9fa;"{% endif %}>Select Languages</div>
+                            <div class="dropdown-content" id="languagesDropdown">
+                                <label><input type="checkbox" name="lang_english" value="english" {{ 'checked' if user and user.languages and 'english' in user.languages else '' }}>English</label>
+                                <label><input type="checkbox" name="lang_hindi" value="hindi" {{ 'checked' if user and user.languages and 'hindi' in user.languages else '' }}>Hindi</label>
+                                <label><input type="checkbox" name="lang_tamil" value="tamil" {{ 'checked' if user and user.languages and 'tamil' in user.languages else '' }}>Tamil</label>
+                                <label><input type="checkbox" name="lang_telugu" value="telugu" {{ 'checked' if user and user.languages and 'telugu' in user.languages else '' }}>Telugu</label>
+                                <label><input type="checkbox" name="lang_bengali" value="bengali" {{ 'checked' if user and user.languages and 'bengali' in user.languages else '' }}>Bengali</label>
+                                <label><input type="checkbox" name="lang_kannada" value="kannada" {{ 'checked' if user and user.languages and 'kannada' in user.languages else '' }}>Kannada</label>
+                                <label><input type="checkbox" name="lang_marathi" value="marathi" {{ 'checked' if user and user.languages and 'marathi' in user.languages else '' }}>Marathi</label>
+                                <label><input type="checkbox" name="lang_other" value="other" {{ 'checked' if user and user.languages and 'other' in user.languages else '' }}>Other</label>
+                            </div>
+                            <div class="selected-items" id="languagesSelected"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="additionalCertificates">Additional Certificates</label>
+                    <input type="file" id="additionalCertificates" name="additionalCertificates" class="file-input" multiple
+                           {% if user and user.profile_completed %}disabled{% endif %}>
+                </div>
+                
+                <div class="form-group">
+                    <label for="experience" class="required">Experience in Your Area</label>
+                    <select id="experience" name="experience" {% if user and user.profile_completed %}disabled{% endif %}>
+                        <option value="">Select Experience Level</option>
+                        <option value="no-experience" {{ 'selected' if user and user.experience == 'no-experience' else '' }}>No Experience / Fresher</option>
+                        <option value="0-6-months" {{ 'selected' if user and user.experience == '0-6-months' else '' }}>0-6 Months</option>
+                        <option value="6-months-1-year" {{ 'selected' if user and user.experience == '6-months-1-year' else '' }}>6 Months - 1 Year</option>
+                        <option value="1-2-years" {{ 'selected' if user and user.experience == '1-2-years' else '' }}>1-2 Years</option>
+                        <option value="2-3-years" {{ 'selected' if user and user.experience == '2-3-years' else '' }}>2-3 Years</option>
+                        <option value="3-5-years" {{ 'selected' if user and user.experience == '3-5-years' else '' }}>3-5 Years</option>
+                        <option value="5-plus-years" {{ 'selected' if user and user.experience == '5-plus-years' else '' }}>5+ Years</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Prior Internship Done</label>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="internshipYes" name="priorInternship" value="yes"
+                                   {{ 'checked' if user and user.prior_internship == 'yes' else '' }}
+                                   {% if user and user.profile_completed %}disabled{% endif %}>
+                            <label for="internshipYes">Yes</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="internshipNo" name="priorInternship" value="no" 
+                                   {{ 'checked' if user and user.prior_internship == 'no' else 'checked' }}
+                                   {% if user and user.profile_completed %}disabled{% endif %}>
+                            <label for="internshipNo">No</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group hidden" id="internshipCertificateGroup">
+                    <label for="internshipCertificate">Upload Internship Certificate</label>
+                    <input type="file" id="internshipCertificate" name="internshipCertificate" class="file-input"
+                           {% if user and user.profile_completed %}disabled{% endif %}>
+                </div>
+            </section>
+
+            <!-- Project Works Section -->
+            <section class="form-section">
+                <h2>Project Works <span style="color: #888; font-size: 0.8em; font-weight: normal;">(Optional)</span></h2>
+                <p>Add details of projects you've worked on (maximum 5 projects) - This section is optional and can be skipped</p>
+                
+                <div id="projectsContainer">
+                    <div class="project-item">
+                        <div class="project-header">
+                            <input type="text" class="project-title" placeholder="Project Title (Optional)"
+                                   {% if user and user.profile_completed %}disabled{% endif %}>
+                            <div class="project-links">
+                                <input type="url" class="project-link-input" placeholder="Project Link (optional)"
+                                       {% if user and user.profile_completed %}disabled{% endif %}>
+                                <input type="url" class="github-link-input" placeholder="GitHub Link (optional)"
+                                       {% if user and user.profile_completed %}disabled{% endif %}>
+                            </div>
+                            <button type="button" class="remove-btn" 
+                                    {% if user and user.profile_completed %}disabled{% endif %}>Remove</button>
+                        </div>
+                        <textarea class="project-description" placeholder="Project Description (technologies used, your role, outcomes) - Optional" rows="3"
+                                  {% if user and user.profile_completed %}disabled{% endif %}></textarea>
+                    </div>
+                </div>
+                
+                <button type="button" class="add-btn" id="addProject" 
+                        {% if user and user.profile_completed %}disabled{% endif %}>+ Add Another Project</button>
+            </section>
+
+            <!-- Social Profiles Section -->
+            <section class="form-section">
+                <h2>Social Profiles</h2>
+                
+                <div class="form-group social-links">
+                    <div>
+                        <label for="linkedin">LinkedIn Profile URL</label>
+                        <input type="url" id="linkedin" name="linkedin" placeholder="https://linkedin.com/in/yourprofile"
+                               {% if user and user.profile_completed %}disabled{% endif %}>
+                    </div>
+                    <div>
+                        <label for="github">GitHub Profile URL</label>
+                        <input type="url" id="github" name="github" placeholder="https://github.com/yourusername"
+                               {% if user and user.profile_completed %}disabled{% endif %}>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Achievements Section -->
+            <section class="form-section">
+                <h2>Achievements</h2>
+                <p>List any notable achievements, awards, or recognitions</p>
+                
+                <div id="achievementsContainer">
+                    <div class="achievement-item">
+                        <div class="achievement-details">
+                            <input type="text" class="achievement-title" placeholder="Achievement Title"
+                                   {% if user and user.profile_completed %}disabled{% endif %}>
+                            <textarea class="achievement-description" placeholder="Description (context, significance)" rows="2"
+                                      {% if user and user.profile_completed %}disabled{% endif %}></textarea>
+                        </div>
+                        <input type="text" class="achievement-year" placeholder="Year" maxlength="4"
+                               {% if user and user.profile_completed %}disabled{% endif %}>
+                        <button type="button" class="remove-btn" 
+                                {% if user and user.profile_completed %}disabled{% endif %}>Remove</button>
+                    </div>
+                </div>
+                
+                <button type="button" class="add-btn" id="addAchievement" 
+                        {% if user and user.profile_completed %}disabled{% endif %}>+ Add Another Achievement</button>
+            </section>
+
+            <!-- Certifications Section -->
+            <section class="form-section">
+                <h2>Certifications</h2>
+                <p>Add any additional certifications you have earned</p>
+                
+                <div id="certificationsContainer">
+                    <div class="certification-item">
+                        <div class="certification-details">
+                            <input type="text" class="certification-title" placeholder="Certification Name"
+                                   {% if user and user.profile_completed %}disabled{% endif %}>
+                            <input type="text" class="certification-issuer" placeholder="Issuing Organization"
+                                   {% if user and user.profile_completed %}disabled{% endif %}>
+                            <input type="text" class="certification-id" placeholder="Credential ID (optional)"
+                                   {% if user and user.profile_completed %}disabled{% endif %}>
+                        </div>
+                        <input type="month" class="certification-date" 
+                               {% if user and user.profile_completed %}disabled{% endif %}>
+                        <button type="button" class="remove-btn" 
+                                {% if user and user.profile_completed %}disabled{% endif %}>Remove</button>
+                    </div>
+                </div>
+                
+                <button type="button" class="add-btn" id="addCertification" 
+                        {% if user and user.profile_completed %}disabled{% endif %}>+ Add Another Certification</button>
+            </section>
+
+            <button type="submit" class="submit-btn" 
+                    {% if user and user.profile_completed %}style="display: none"{% endif %}>
+                {{ 'Update Profile' if user and user.profile_completed else 'Submit Registration' }}
+            </button>
+            
+            <div id="successMessage" class="success-message">
+                <h3>Profile Saved Successfully!</h3>
+                <p>Thank you for completing your profile. You can now access additional features.</p>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Initialize profile completed state from Flask template
+        window.profileCompleted = {{ 'true' if user and user.profile_completed else 'false' }};
+    </script>
+    <script src="{{ url_for('static', filename='js/profile.js') }}"></script>
+</body>
+</html>

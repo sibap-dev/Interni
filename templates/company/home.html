@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Portal - PM Internship Scheme</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --primary-dark: #0d47a1;
+            --secondary: #34a853;
+            --warning: #f9a825;
+            --danger: #ea4335;
+            --light: #f8f9fa;
+            --dark: #202124;
+            --gray: #5f6368;
+            --light-gray: #dadce0;
+            --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            --company-primary: #6a1b9a;
+            --company-dark: #4a148c;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .company-hero {
+            padding: 3rem 0;
+            background: linear-gradient(rgba(106, 27, 154, 0.9), rgba(74, 20, 140, 0.9)), url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%236a1b9a"/><path d="M0 0L100 100M100 0L0 100" stroke="%234a148c" stroke-width="2"/></svg>');
+            background-size: cover;
+            color: white;
+            text-align: center;
+        }
+        
+        .company-hero h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .company-hero p {
+            font-size: 1.2rem;
+            max-width: 800px;
+            margin: 0 auto 2rem;
+        }
+        
+        .btn {
+            display: inline-block;
+            background-color: white;
+            color: var(--company-primary);
+            padding: 12px 24px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background-color: var(--light);
+            transform: translateY(-2px);
+        }
+        
+        .btn-primary {
+            background-color: var(--secondary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2e8b47;
+            color: white;
+        }
+        
+        .btn-company {
+            background-color: var(--company-primary);
+            color: white;
+        }
+        
+        .btn-company:hover {
+            background-color: var(--company-dark);
+        }
+        
+        .dashboard-section {
+            padding: 3rem 0;
+        }
+        
+        .section-title {
+            margin-bottom: 2rem;
+        }
+        
+        .section-title h2 {
+            font-size: 2rem;
+            color: var(--company-dark);
+            margin-bottom: 0.5rem;
+        }
+        
+        .section-title p {
+            color: var(--gray);
+        }
+        
+        .dashboard-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        
+        .dashboard-card {
+            background-color: white;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s;
+            border-left: 4px solid var(--company-primary);
+        }
+        
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .card-icon {
+            font-size: 2rem;
+            margin-right: 1rem;
+            color: var(--company-primary);
+        }
+        
+        .card-title {
+            font-size: 1.3rem;
+            color: var(--dark);
+        }
+        
+        .card-content {
+            color: var(--gray);
+            margin-bottom: 1.5rem;
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--company-primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+        
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .action-card {
+            background-color: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: var(--shadow);
+            transition: all 0.3s;
+            cursor: pointer;
+            border-top: 4px solid var(--company-primary);
+        }
+        
+        .action-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .action-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: var(--company-primary);
+        }
+        
+        .action-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .action-desc {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+        
+        .ai-insights {
+            background: linear-gradient(135deg, #f8fbff, #e3f2fd);
+            border-radius: 8px;
+            padding: 2rem;
+            margin-top: 2rem;
+            border-left: 4px solid var(--company-primary);
+        }
+        
+        .insights-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .insights-icon {
+            font-size: 2rem;
+            color: var(--company-primary);
+        }
+        
+        .insights-title {
+            font-size: 1.5rem;
+            color: var(--company-dark);
+        }
+        
+        .insights-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .insight-item {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 6px;
+            box-shadow: var(--shadow);
+        }
+        
+        .insight-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--company-primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .insight-label {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+        
+        .active-internships {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            margin-top: 2rem;
+        }
+        
+        .internship-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .internship-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1.5rem;
+            border-left: 4px solid var(--company-primary);
+            transition: transform 0.3s;
+        }
+        
+        .internship-card:hover {
+            transform: translateY(-3px);
+        }
+        
+        .internship-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+        
+        .internship-details {
+            display: grid;
+        }
+        
+        .welcome-section h1 {
+            font-size: 2rem;
+            color: var(--company-dark);
+            margin-bottom: 1rem;
+        }
+        
+        .welcome-section p {
+            color: var(--gray);
+            margin-bottom: 1.5rem;
+        }
+        
+        .btn-primary {
+            background-color: var(--secondary);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2e8b47;
+            transform: translateY(-2px);
+        }
+        
+        .stats-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+        }
+        
+        .stats-section h2 {
+            font-size: 1.5rem;
+            color: var(--company-dark);
+            margin-bottom: 0.5rem;
+        }
+        
+        .stats-section p {
+            color: var(--gray);
+            margin-bottom: 1.5rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid var(--company-primary);
+        }
+        
+        .stat-number {
+            display: block;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--company-primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+        
+        .recent-activity {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+        }
+        
+        .recent-activity h2 {
+            font-size: 1.5rem;
+            color: var(--company-dark);
+            margin-bottom: 1.5rem;
+        }
+        
+        .notifications-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .notification-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid var(--company-primary);
+        }
+        
+        .notification-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+        
+        .notification-content {
+            flex: 1;
+        }
+        
+        .notification-title {
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+        }
+        
+        .notification-subtitle {
+            color: var(--gray);
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .notification-time {
+            color: var(--gray);
+            font-size: 0.8rem;
+        }
+        
+        .internships-overview {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+        
+        .internships-overview h2 {
+            font-size: 1.5rem;
+            color: var(--company-dark);
+            margin-bottom: 0.5rem;
+        }
+        
+        .internships-overview p {
+            color: var(--gray);
+            margin-bottom: 1.5rem;
+        }
+        
+        .internships-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .internship-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1.5rem;
+            border-left: 4px solid var(--company-primary);
+            transition: transform 0.3s;
+        }
+        
+        .internship-card:hover {
+            transform: translateY(-3px);
+        }
+        
+        .internship-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+        
+        .internship-header h4 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--dark);
+            margin: 0;
+        }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-badge.active {
+            background-color: #e8f5e8;
+            color: var(--secondary);
+        }
+        
+        .status-badge.draft {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-badge.closed {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .internship-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            color: var(--gray);
+        }
+        
+        .internship-stats {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--light-gray);
+        }
+        
+        .internship-stats .stat {
+            text-align: center;
+        }
+        
+        .internship-stats .number {
+            display: block;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--company-primary);
+        }
+        
+        .internship-stats .label {
+            font-size: 0.8rem;
+            color: var(--gray);
+        }
+        
+        .internship-actions {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .btn-small {
+            background-color: var(--company-primary);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .btn-small:hover {
+            background-color: var(--company-dark);
+            transform: translateY(-1px);
+        }
+        
+        /* Media Queries for Responsive Design */
+        @media (max-width: 992px) {
+            .logo h1 {
+                font-size: 1.3rem;
+            }
+            
+            nav ul {
+                gap: 15px;
+            }
+            
+            .container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                flex: none;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .internships-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .header-content {
+                flex-wrap: wrap;
+            }
+            
+            .logo h1 {
+                font-size: 1.2rem;
+            }
+            
+            .hamburger-menu {
+                display: flex;
+            }
+            
+            nav {
+                display: none;
+            }
+            
+            .user-info {
+                display: none;
+            }
+            
+            .welcome-section h1 {
+                font-size: 1.6rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .internships-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .internship-meta {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .internship-stats {
+                gap: 1rem;
+            }
+            
+            .container {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .main-content {
+                padding: 1rem 0;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .logo h1 {
+                font-size: 1.1rem;
+            }
+            
+            .welcome-section h1 {
+                font-size: 1.4rem;
+            }
+            
+            .welcome-section {
+                padding: 1.5rem;
+            }
+            
+            .stats-section,
+            .recent-activity,
+            .internships-overview {
+                padding: 1.5rem;
+            }
+            
+            .stat-number {
+                font-size: 2rem;
+            }
+            
+            .internship-card {
+                padding: 1rem;
+            }
+    </style>
+</head>
+<body>
+    {% set page_title = "Company Portal" %}
+    {% include 'company/navbar.html' %}
+
+    <div class="container">
+        <!-- Keep existing sidebar if present -->
+        <aside class="sidebar">
+            <!-- ... your existing sidebar code ... -->
+        </aside>
+
+        <!-- Main content - only data changes here -->
+        <main class="main-content">
+            <section class="welcome-section">
+                <h1>Welcome back, {{ company_name or 'Company' }}! 👋</h1>
+                <p>Find the perfect internship candidates using our AI-powered matching system. Streamline your hiring process and discover talented students from across the country.</p>
+                <a href="/company/internships/new" class="btn-primary">
+                    <i class="fas fa-plus"></i>
+                    Post New Internship
+                </a>
+            </section>
+
+            <!-- UPDATED - Dynamic stats section -->
+            <section class="stats-section">
+                <h2>Overview</h2>
+                <p>Overview of your internship program and candidate pipeline</p>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-number">{{ stats.total_applications or 0 }}</span>
+                        <span class="stat-label">Total Applications</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">{{ stats.new_applications or 0 }}</span>
+                        <span class="stat-label">New Applications</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">{{ stats.active_internships or 0 }}</span>
+                        <span class="stat-label">Active Internships</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">{{ stats.shortlisted_applications or 0 }}</span>
+                        <span class="stat-label">Shortlisted</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- UPDATED - Dynamic recent activity -->
+            <section class="recent-activity">
+                <h2>Recent Activity</h2>
+                <div class="notifications-list">
+                    {% if recent_notifications %}
+                        {% for notification in recent_notifications[:5] %}
+                        <div class="notification-item">
+                            <div class="notification-icon">
+                                {% if notification.notification_type == 'application_submitted' %}👤
+                                {% elif notification.notification_type == 'status_update' %}📊
+                                {% else %}📧{% endif %}
+                            </div>
+                            <div class="notification-content">
+                                <div class="notification-title">{{ notification.title }}</div>
+                                <div class="notification-subtitle">{{ notification.message }}</div>
+                                <div class="notification-time">{{ notification.created_at.strftime('%B %d, %Y at %I:%M %p') }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="notification-item">
+                        <div class="notification-icon">�</div>
+                        <div class="notification-content">
+                            <div class="notification-title">No recent notifications</div>
+                            <div class="notification-subtitle">Your recent activity will appear here</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+
+            <!-- UPDATED - Dynamic internships -->
+            <section class="internships-overview">
+                <h2>Active Internships</h2>
+                <p>Currently open positions in your organization</p>
+                <div class="internships-grid">
+                    {% if recent_internships %}
+                        {% for internship in recent_internships %}
+                        <div class="internship-card">
+                            <div class="internship-header">
+                                <h4>{{ internship.title }}</h4>
+                                <span class="status-badge {{ internship.status }}">{{ internship.status.title() }}</span>
+                            </div>
+                            <div class="internship-meta">
+                                <span>📍 {{ internship.location }}</span>
+                                <span>💰 ₹{{ "{:,.0f}".format(internship.stipend_amount) if internship.stipend_amount else 'Negotiable' }}/month</span>
+                                <span>📅 {{ internship.duration }}</span>
+                            </div>
+                            <div class="internship-stats">
+                                <div class="stat">
+                                    <span class="number">{{ internship.total_applications }}</span>
+                                    <span class="label">Applications</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="number">{{ internship.shortlisted_count }}</span>
+                                    <span class="label">Shortlisted</span>
+                                </div>
+                            </div>
+                            <div class="internship-actions">
+                                <a href="/company/applications?internship={{ internship.id }}" class="btn-small">View Applications</a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="internship-card">
+                        <div class="internship-header">
+                            <h4>No active internships</h4>
+                        </div>
+                        <div class="internship-meta">
+                            <span>Post your first internship to get started</span>
+                        </div>
+                        <div class="internship-actions">
+                            <a href="/company/internships/new" class="btn-primary">Post Internship</a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+        </main>
+    </div>
+
+
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>PM Internship Scheme</h3>
+                    <p>Connecting companies with talented students through AI-powered matching.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Company Resources</h3>
+                    <a href="{{ url_for('company_home') }}">Dashboard</a>
+                    <a href="{{ url_for('company_internships') }}">Internship Management</a>
+                    <a href="{{ url_for('company_candidates') }}">Candidate Search</a>
+                    <a href="{{ url_for('company_analytics') }}">Analytics</a>
+                </div>
+                <div class="footer-section">
+                    <h3>Support</h3>
+                    <a href="{{ url_for('company_home') }}">Help Center</a>
+                    <a href="{{ url_for('company_profile') }}">Contact Us</a>
+                    <a href="{{ url_for('company_home') }}">FAQs</a>
+                    <a href="{{ url_for('company_profile') }}">Privacy Policy</a>
+                </div>
+            </div>
+            <div class="copyright">
+                <p>&copy; 2023 PM Internship Scheme - Company Portal. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Hamburger menu functionality
+        const hamburgerMenu = document.querySelector('.hamburger-menu');
+        const mobileNav = document.querySelector('.mobile-nav');
+        
+        hamburgerMenu.addEventListener('click', function() {
+            this.classList.toggle('active');
+            mobileNav.classList.toggle('active');
+        });
+        
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.hamburger-menu') && !event.target.closest('.mobile-nav')) {
+                hamburgerMenu.classList.remove('active');
+                mobileNav.classList.remove('active');
+            }
+        });
+        
+        // Close mobile menu when clicking on a link
+        document.querySelectorAll('.mobile-nav a').forEach(link => {
+            link.addEventListener('click', function() {
+                hamburgerMenu.classList.remove('active');
+                mobileNav.classList.remove('active');
+            });
+        });
+        
+        // Quick actions functionality
+        document.querySelectorAll('.action-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const actionTitle = this.querySelector('.action-title').textContent;
+                alert(`Navigating to: ${actionTitle}`);
+                // In a real application, this would navigate to the appropriate page
+            });
+        });
+        
+        // Add real-time updates script
+        async function updateDashboardStats() {
+            try {
+                const response = await fetch('/api/company/dashboard-stats');
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        const stats = result.data;
+                        document.querySelector('.stat-item:nth-child(1) .stat-number').textContent = stats.total_applications;
+                        document.querySelector('.stat-item:nth-child(2) .stat-number').textContent = stats.new_applications;
+                        document.querySelector('.stat-item:nth-child(3) .stat-number').textContent = stats.active_internships;
+                        document.querySelector('.stat-item:nth-child(4) .stat-number').textContent = stats.shortlisted_applications;
+                    }
+                }
+            } catch (error) {
+                console.log('Stats update failed:', error);
+            }
+        }
+
+        // Update every 60 seconds
+        setInterval(updateDashboardStats, 60000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard - PM Internship Scheme</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --primary-dark: #0d47a1;
+            --secondary: #34a853;
+            --warning: #f9a825;
+            --danger: #ea4335;
+            --light: #f8f9fa;
+            --dark: #202124;
+            --gray: #5f6368;
+            --light-gray: #dadce0;
+            --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            --company-primary: #6a1b9a;
+            --company-dark: #4a148c;
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .user-info {
+            text-align: right;
+        }
+        
+        .user-name {
+            font-weight: 600;
+        }
+        
+        .user-role {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        .analytics-hero {
+            padding: 2rem 0;
+            background: white;
+            border-bottom: 1px solid var(--light-gray);
+        }
+        
+        .hero-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .hero-text h1 {
+            font-size: 2rem;
+            color: var(--company-dark);
+            margin-bottom: 0.5rem;
+        }
+        
+        .hero-text p {
+            color: var(--gray);
+            max-width: 600px;
+        }
+        
+        .analytics-stats {
+            display: flex;
+            gap: 2rem;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--company-primary);
+        }
+        
+        .stat-label {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+        
+        .analytics-section {
+            padding: 2rem 0;
+        }
+        
+        .section-title {
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .section-title h2 {
+            font-size: 1.8rem;
+            color: var(--company-dark);
+        }
+        
+        .date-range {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            box-shadow: var(--card-shadow);
+        }
+        
+        .date-selector {
+            padding: 6px 12px;
+            border: 1px solid var(--light-gray);
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+        
+        .analytics-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.3s, box-shadow 0.3s;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .analytics-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .analytics-card.full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        .card-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .card-action {
+            background: none;
+            border: none;
+            color: var(--gray);
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: color 0.3s;
+        }
+        
+        .card-action:hover {
+            color: var(--company-primary);
+        }
+        
+        .chart-container {
+            height: 300px;
+            position: relative;
+            flex-grow: 1;
+            width: 100%;
+            min-height: 200px;
+        }
+        
+        /* Ensure canvas elements are responsive */
+        .chart-container canvas {
+            max-width: 100% !important;
+            height: auto !important;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+            text-align: center;
+            transition: transform 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+        }
+        
+        .stat-card:nth-child(1)::before { background: linear-gradient(90deg, #6a1b9a, #8e24aa); }
+        .stat-card:nth-child(2)::before { background: linear-gradient(90deg, #34a853, #4caf50); }
+        .stat-card:nth-child(3)::before { background: linear-gradient(90deg, #f9a825, #ffb300); }
+        .stat-card:nth-child(4)::before { background: linear-gradient(90deg, #1a73e8, #2196f3); }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: var(--company-primary);
+        }
+        
+        .stat-card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-card .label {
+            color: var(--gray);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-card .trend {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .trend.up {
+            color: var(--secondary);
+        }
+        
+        .trend.down {
+            color: var(--danger);
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .metric-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+        }
+        
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .metric-title {
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--company-primary);
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: var(--light-gray);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: var(--company-primary);
+        }
+        
+        .status-breakdown {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.8rem;
+            border-radius: 6px;
+            transition: background-color 0.3s;
+        }
+        
+        .status-item:hover {
+            background-color: var(--light);
+        }
+        
+        .status-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .status-name {
+            font-weight: 500;
+        }
+        
+        .status-count {
+            font-weight: 600;
+        }
+        
+        .status-percentage {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+        
+        .top-skills {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .skill-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .skill-name {
+            font-weight: 500;
+            width: 120px;
+        }
+        
+        .skill-bar {
+            flex-grow: 1;
+            height: 8px;
+            background: var(--light-gray);
+            border-radius: 4px;
+            margin: 0 1rem;
+            overflow: hidden;
+        }
+        
+        .skill-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: var(--company-primary);
+        }
+        
+        .skill-count {
+            font-weight: 600;
+            color: var(--company-primary);
+            width: 40px;
+            text-align: right;
+        }
+        
+        .university-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .university-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.8rem;
+            border-radius: 6px;
+            transition: background-color 0.3s;
+        }
+        
+        .university-item:hover {
+            background-color: var(--light);
+        }
+        
+        .university-name {
+            font-weight: 500;
+        }
+        
+        .university-count {
+            font-weight: 600;
+            color: var(--company-primary);
+        }
+        
+        .export-options {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            justify-content: center;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background-color: var(--company-primary);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: var(--card-shadow);
+        }
+        
+        .btn:hover {
+            background-color: var(--company-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--company-primary);
+            color: var(--company-primary);
+        }
+        
+        .btn-outline:hover {
+            background: var(--company-primary);
+            color: white;
+        }
+        
+        .analytics-card {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+    }
+        
+        @media screen and (max-width: 575px) {
+            .chart-container {
+                height: 220px !important;
+                min-height: 180px !important;
+                max-height: 250px !important;
+                padding: 0.8rem !important;
+            }
+        }
+        
+        @media screen and (max-width: 479px) {
+            .chart-container {
+                height: 200px !important;
+                min-height: 160px !important;
+                max-height: 220px !important;
+                padding: 0.5rem !important;
+            }
+        }
+        
+        /* Media Queries for Responsive Design */
+        @media (max-width: 1200px) {
+            .chart-container {
+                height: 280px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 992px) {
+            .analytics-grid {
+                grid-template-columns: 1fr !important;
+                gap: 1.5rem !important;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .hero-content {
+                flex-direction: column;
+                gap: 1.5rem;
+                text-align: center;
+            }
+            
+            .analytics-stats {
+                justify-content: center;
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+            
+            .analytics-grid {
+                grid-template-columns: 1fr !important;
+                gap: 1.5rem !important;
+                margin-top: 2rem;
+            }
+            
+            .chart-container {
+                height: 250px !important;
+                padding: 1rem !important;
+                width: 100% !important;
+            }
+            
+            .card {
+                margin-bottom: 1rem;
+                padding: 1rem;
+            }
+            
+            .card-header {
+                padding: 1rem 1.5rem;
+                font-size: 1rem;
+            }
+            
+            .card-body {
+                padding: 1rem 1.5rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr !important;
+                gap: 1rem;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: 1fr !important;
+                gap: 1rem;
+            }
+            
+            .section-title {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+            
+            .date-range {
+                align-self: stretch;
+                justify-content: space-between;
+            }
+            
+            .export-options {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .logo h1 {
+                font-size: 1.1rem;
+            }
+            
+            .stat-value {
+                font-size: 1.5rem;
+            }
+            
+            .analytics-stats {
+                flex-direction: column;
+                align-items: center;
+                gap: 1rem;
+                width: 100%;
+            }
+            
+            .stat-item {
+                width: 100%;
+                max-width: 200px;
+                text-align: center;
+            }
+            
+            .analytics-grid {
+                grid-template-columns: 1fr !important;
+                gap: 1rem !important;
+                margin-top: 1.5rem;
+            }
+            
+            .chart-container {
+                height: 220px !important;
+                padding: 0.8rem !important;
+                width: 100% !important;
+            }
+            
+            .card {
+                margin-bottom: 1rem;
+                padding: 0.8rem;
+                border-radius: 8px;
+            }
+            
+            .card-header {
+                padding: 0.8rem 1rem;
+                font-size: 0.9rem;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .card-body {
+                padding: 0.8rem 1rem;
+            }
+            
+            .card-actions {
+                align-self: flex-end;
+                margin-top: 0.5rem;
+            }
+            
+            .date-range {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+            
+            .export-options {
+                flex-direction: column;
+                gap: 0.5rem;
+                width: 100%;
+            }
+            
+            .export-options .btn,
+            .export-options .btn-outline {
+                width: 100%;
+                text-align: center;
+                padding: 0.8rem 1rem;
+                font-size: 0.9rem;
+            }
+            
+            .section-title h2 {
+                font-size: 1.4rem;
+            }
+            
+            .hero-text h1 {
+                font-size: 2rem;
+            }
+            
+            .hero-text p {
+                font-size: 0.95rem;
+                line-height: 1.5;
+            }
+            
+            /* Ensure charts are properly sized on mobile */
+            .chart-wrapper {
+                position: relative;
+                width: 100% !important;
+                overflow: hidden;
+            }
+            
+            /* Force canvas responsiveness */
+            .chart-container canvas {
+                max-width: 100% !important;
+                height: auto !important;
+            }
+            
+            /* Adjust container padding for mobile */
+            .container {
+                padding: 0 1rem;
+            }
+            
+            .analytics-section {
+                padding: 2rem 0;
+            }
+        }
+        
+        /* Extra small screens */
+        @media (max-width: 480px) {
+            .hero-text h1 {
+                font-size: 1.8rem;
+            }
+            
+            .hero-text p {
+                font-size: 0.9rem;
+            }
+            
+            .chart-container {
+                height: 200px !important;
+                padding: 0.5rem !important;
+                width: 100% !important;
+            }
+            
+            .card {
+                padding: 0.5rem;
+            }
+            
+            .card-header {
+                padding: 0.5rem 0.8rem;
+                font-size: 0.85rem;
+            }
+            
+            .card-body {
+                padding: 0.5rem 0.8rem;
+            }
+            
+            .analytics-stats .stat-item {
+                padding: 0.8rem;
+            }
+            
+            .stat-value {
+                font-size: 1.3rem;
+            }
+            
+            .stat-label {
+                font-size: 0.8rem;
+            }
+            
+            .section-title h2 {
+                font-size: 1.2rem;
+            }
+            
+            /* Improve button sizing for very small screens */
+            .export-options .btn,
+            .export-options .btn-outline {
+                padding: 0.6rem 0.8rem;
+                font-size: 0.85rem;
+            }
+            
+            /* Ensure proper spacing */
+            .analytics-grid {
+                gap: 0.8rem !important;
+            }
+            
+            /* Force responsiveness on canvas elements */
+            .chart-container canvas {
+                width: 100% !important;
+                max-width: 100% !important;
+                height: auto !important;
+            }
+        }
+        
+        /* Landscape orientation on mobile */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .analytics-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 1rem !important;
+            }
+            
+            .chart-container {
+                height: 200px !important;
+            }
+        }
+        
+        @media (max-width: 576px) and (orientation: landscape) {
+            .analytics-grid {
+                grid-template-columns: 1fr !important;
+                gap: 0.8rem !important;
+            }
+            
+            .chart-container {
+                height: 180px !important;
+            }
+    </style>
+</head>
+<body>
+    {% set page_title = "Analytics" %}
+    {% include 'company/navbar.html' %}
+
+    <section class="analytics-hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1>Analytics Dashboard</h1>
+                    <p>Gain insights into candidate applications, conversion rates, and program performance with interactive visualizations.</p>
+                </div>
+                <div class="analytics-stats">
+                    <div class="stat-item">
+                        <div class="stat-value">147</div>
+                        <div class="stat-label">Total Candidates</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">23%</div>
+                        <div class="stat-label">Conversion Rate</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">15</div>
+                        <div class="stat-label">Interviews Scheduled</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="analytics-section">
+        <div class="container">
+            <div class="section-title">
+                <h2>Performance Overview</h2>
+                <div class="date-range">
+                    <span>Date Range:</span>
+                    <select class="date-selector" id="dateRange">
+                        <option>Last 7 days</option>
+                        <option selected>Last 30 days</option>
+                        <option>Last 90 days</option>
+                        <option>Last 6 months</option>
+                        <option>Custom Range</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-file-alt"></i></div>
+                    <div class="value">147</div>
+                    <div class="label">Total Applications</div>
+                    <div class="trend up">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>12% vs last month</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-star"></i></div>
+                    <div class="value">23</div>
+                    <div class="label">Shortlisted</div>
+                    <div class="trend up">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>8% vs last month</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+                    <div class="value">15</div>
+                    <div class="label">Interviews</div>
+                    <div class="trend up">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>15% vs last month</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-handshake"></i></div>
+                    <div class="value">8</div>
+                    <div class="label">Offers Extended</div>
+                    <div class="trend down">
+                        <i class="fas fa-arrow-down"></i>
+                        <span>5% vs last month</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="analytics-grid">
+                <div class="analytics-card full-width">
+                    <div class="card-header">
+                        <div class="card-title">Applications Over Time</div>
+                        <div class="card-actions">
+                            <button class="card-action" title="Download"><i class="fas fa-download"></i></button>
+                            <button class="card-action" title="Expand"><i class="fas fa-expand"></i></button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-wrapper">
+                            <canvas id="applicationsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="analytics-card">
+                    <div class="card-header">
+                        <div class="card-title">Application Status</div>
+                        <div class="card-actions">
+                            <button class="card-action" title="Download"><i class="fas fa-download"></i></button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-wrapper">
+                            <canvas id="statusChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="analytics-card">
+                    <div class="card-header">
+                        <div class="card-title">Top Skills</div>
+                        <div class="card-actions">
+                            <button class="card-action" title="Download"><i class="fas fa-download"></i></button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-wrapper">
+                            <canvas id="skillsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="analytics-card">
+                    <div class="card-header">
+                        <div class="card-title">Conversion Funnel</div>
+                        <div class="card-actions">
+                            <button class="card-action" title="Download"><i class="fas fa-download"></i></button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-wrapper">
+                            <canvas id="funnelChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="analytics-card">
+                    <div class="card-header">
+                        <div class="card-title">Top Universities</div>
+                        <div class="card-actions">
+                            <button class="card-action" title="Download"><i class="fas fa-download"></i></button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-wrapper">
+                            <canvas id="universitiesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="analytics-card">
+                    <div class="card-header">
+                        <div class="card-title">Position Performance</div>
+                        <div class="card-actions">
+                            <button class="card-action" title="Download"><i class="fas fa-download"></i></button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-wrapper">
+                            <canvas id="positionsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="export-options">
+                <button class="btn"><i class="fas fa-file-export"></i> Export Full Report</button>
+                <button class="btn btn-outline"><i class="fas fa-calendar-alt"></i> Schedule Regular Reports</button>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>PM Internship Scheme</h3>
+                    <p>Connecting talented students with innovative companies for meaningful internship experiences.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Quick Links</h3>
+                    <a href="{{ url_for('company_home') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                    <a href="{{ url_for('company_internships') }}"><i class="fas fa-briefcase"></i> Internships</a>
+                    <a href="{{ url_for('company_candidates') }}"><i class="fas fa-users"></i> Candidates</a>
+                    <a href="{{ url_for('company_analytics') }}"><i class="fas fa-chart-bar"></i> Analytics</a>
+                </div>
+                <div class="footer-section">
+                    <h3>Support</h3>
+                    <a href="{{ url_for('company_home') }}"><i class="fas fa-question-circle"></i> Help Center</a>
+                    <a href="{{ url_for('company_profile') }}"><i class="fas fa-envelope"></i> Contact Us</a>
+                    <a href="{{ url_for('company_profile') }}"><i class="fas fa-shield-alt"></i> Privacy Policy</a>
+                    <a href="{{ url_for('company_home') }}"><i class="fas fa-file-contract"></i> Terms of Service</a>
+                </div>
+            </div>
+            <div class="copyright">
+                <p>&copy; 2024 PM Internship Scheme. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Store chart instances for resize handling
+        let chartInstances = {};
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize all charts
+            initApplicationsChart();
+            initStatusChart();
+            initSkillsChart();
+            initFunnelChart();
+            initUniversitiesChart();
+            initPositionsChart();
+            
+            // Handle window resize for responsive charts
+            let resizeTimeout;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(function() {
+                    // Resize all chart instances
+                    Object.values(chartInstances).forEach(chart => {
+                        if (chart && typeof chart.resize === 'function') {
+                            chart.resize();
+                        }
+                    });
+                }, 250);
+            });
+            
+            // Date range selector functionality
+            const dateSelector = document.getElementById('dateRange');
+            dateSelector.addEventListener('change', function() {
+                // Show loading state
+                document.querySelectorAll('.chart-container').forEach(container => {
+                    container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+                });
+                
+                // Simulate data loading
+                setTimeout(() => {
+                    // In a real application, this would fetch new data based on date range
+                    alert(`Loading data for: ${this.value}`);
+                    
+                    // Reinitialize charts with new data
+                    initApplicationsChart();
+                    initStatusChart();
+                    initSkillsChart();
+                    initFunnelChart();
+                    initUniversitiesChart();
+                    initPositionsChart();
+                }, 1000);
+            });
+            
+            // Export buttons functionality
+            document.querySelector('.export-options .btn').addEventListener('click', function() {
+                alert('Exporting full analytics report as PDF...');
+            });
+            
+            document.querySelector('.export-options .btn-outline').addEventListener('click', function() {
+                alert('Opening schedule settings for regular reports...');
+            });
+            
+            // Card action buttons
+            document.querySelectorAll('.card-action').forEach(button => {
+                button.addEventListener('click', function() {
+                    const icon = this.querySelector('i');
+                    if (icon.classList.contains('fa-download')) {
+                        alert('Downloading chart data as CSV...');
+                    } else if (icon.classList.contains('fa-expand')) {
+                        alert('Expanding chart to full screen...');
+                    }
+                });
+            });
+            
+            // Chart initialization functions
+            function initApplicationsChart() {
+                const ctx = document.getElementById('applicationsChart').getContext('2d');
+                chartInstances.applicationsChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+                        datasets: [{
+                            label: 'Applications',
+                            data: [65, 59, 80, 81, 56, 55, 70],
+                            borderColor: '#6a1b9a',
+                            backgroundColor: 'rgba(106, 27, 154, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    drawBorder: false
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function initStatusChart() {
+                const ctx = document.getElementById('statusChart').getContext('2d');
+                chartInstances.statusChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['New', 'Review', 'Shortlisted', 'Interview', 'Waitlisted', 'Rejected'],
+                        datasets: [{
+                            data: [32, 45, 23, 15, 12, 20],
+                            backgroundColor: [
+                                '#1a73e8', '#f9a825', '#34a853', '#0288d1', '#7b1fa2', '#ea4335'
+                            ],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    boxWidth: 12,
+                                    padding: 15
+                                }
+                            }
+                        },
+                        cutout: '65%'
+                    }
+                });
+            }
+            
+            function initSkillsChart() {
+                const ctx = document.getElementById('skillsChart').getContext('2d');
+                chartInstances.skillsChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Python', 'ML', 'Data Analysis', 'SQL', 'JavaScript'],
+                        datasets: [{
+                            label: 'Candidates',
+                            data: [125, 106, 100, 90, 79],
+                            backgroundColor: '#6a1b9a',
+                            borderWidth: 0,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    drawBorder: false
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function initFunnelChart() {
+                const ctx = document.getElementById('funnelChart').getContext('2d');
+                chartInstances.funnelChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Applications', 'Review', 'Shortlisted', 'Interview', 'Offers'],
+                        datasets: [{
+                            label: 'Candidates',
+                            data: [147, 45, 23, 15, 8],
+                            backgroundColor: [
+                                'rgba(106, 27, 154, 0.8)',
+                                'rgba(106, 27, 154, 0.7)',
+                                'rgba(106, 27, 154, 0.6)',
+                                'rgba(106, 27, 154, 0.5)',
+                                'rgba(106, 27, 154, 0.4)'
+                            ],
+                            borderWidth: 0,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                grid: {
+                                    display: false
+                                }
+                            },
+                            y: {
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function initUniversitiesChart() {
+                const ctx = document.getElementById('universitiesChart').getContext('2d');
+                chartInstances.universitiesChart = new Chart(ctx, {
+                    type: 'polarArea',
+                    data: {
+                        labels: ['IIT Bombay', 'DTU', 'IIIT Hyderabad', 'BITS Pilani', 'NIT Trichy'],
+                        datasets: [{
+                            data: [18, 15, 12, 10, 8],
+                            backgroundColor: [
+                                'rgba(106, 27, 154, 0.8)',
+                                'rgba(106, 27, 154, 0.7)',
+                                'rgba(106, 27, 154, 0.6)',
+                                'rgba(106, 27, 154, 0.5)',
+                                'rgba(106, 27, 154, 0.4)'
+                            ],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    boxWidth: 12,
+                                    padding: 15
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function initPositionsChart() {
+                const ctx = document.getElementById('positionsChart').getContext('2d');
+                chartInstances.positionsChart = new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: ['Applications', 'Shortlisted', 'Interviews', 'Conversion', 'Satisfaction'],
+                        datasets: [
+                            {
+                                label: 'Data Science',
+                                data: [85, 75, 65, 60, 70],
+                                borderColor: '#6a1b9a',
+                                backgroundColor: 'rgba(106, 27, 154, 0.2)',
+                                pointBackgroundColor: '#6a1b9a'
+                            },
+                            {
+                                label: 'AI Research',
+                                data: [70, 60, 55, 50, 65],
+                                borderColor: '#f9a825',
+                                backgroundColor: 'rgba(249, 168, 37, 0.2)',
+                                pointBackgroundColor: '#f9a825'
+                            },
+                            {
+                                label: 'Software Dev',
+                                data: [60, 50, 45, 40, 55],
+                                borderColor: '#34a853',
+                                backgroundColor: 'rgba(52, 168, 83, 0.2)',
+                                pointBackgroundColor: '#34a853'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            r: {
+                                angleLines: {
+                                    display: true
+                                },
+                                suggestedMin: 0,
+                                suggestedMax: 100
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

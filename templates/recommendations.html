@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Internship Recommendations - PM Internship Scheme</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/recommendations.css') }}">
+
+</head>
+<body>
+    <!-- NAVIGATION BAR -->
+    <div class="nav-bar">
+        <div class="nav-brand">
+            <i class="fas fa-briefcase" style="color: var(--primary-color); font-size: 1.5rem;"></i>
+            <h3>PM Internship Scheme</h3>
+        </div>
+        <div class="nav-actions">
+            <a href="{{ url_for('home') }}" class="nav-btn home-btn">
+                <i class="fas fa-home"></i>
+                Home
+            </a>
+            <a href="{{ url_for('logout') }}" class="nav-btn logout-btn">
+                <i class="fas fa-sign-out-alt"></i>
+                Logout
+            </a>
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-star"></i> Personalized Recommendations</h1>
+            <p class="subtitle">AI-powered internship matches based on your profile</p>
+        </header>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash-message flash-{{ category }}">
+                            <i class="fas fa-info-circle"></i>
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- USER PROFILE SECTION -->
+        <div class="profile-section">
+            <div class="profile-header">
+                <div class="user-avatar">
+                    {{ user_initials }}
+                </div>
+                <div class="profile-info">
+                    <h3>{{ user_name }}</h3>
+                    <p><i class="fas fa-envelope"></i> {{ user_email }}</p>
+                    <p><i class="fas fa-graduation-cap"></i> {{ user.qualification|title if user.qualification else 'Not specified' }}</p>
+                    <p><i class="fas fa-map-marker-alt"></i> {{ user.district|title if user.district else 'Not specified' }}</p>
+                </div>
+            </div>
+            
+            <div class="skills-display">
+                <h4 style="color: var(--dark-color); margin-bottom: 10px;">
+                    <i class="fas fa-cogs"></i> Your Skills
+                </h4>
+                <p style="color: #666; font-size: 0.9rem; margin-bottom: 10px;">
+                    🎯 Recommendations are matched against these skills with government priority
+                </p>
+                <div class="skills-list">
+                    {% if user.skills %}
+                        <!-- 🔧 FIXED: Handle skills as list instead of splitting -->
+                        {% if user.skills is iterable and user.skills is not string %}
+                            {% for skill in user.skills %}
+                                <span class="skill-tag">{{ skill|title }}</span>
+                            {% endfor %}
+                        {% else %}
+                            {% for skill in user.skills.split(',') %}
+                                <span class="skill-tag">{{ skill.strip()|title }}</span>
+                            {% endfor %}
+                        {% endif %}
+                    {% else %}
+                        <span class="skill-tag" style="background: #95a5a6;">No skills specified</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 🔧 NEW: FILTER TABS SECTION -->
+        <div class="filter-tabs">
+            <div class="tabs-header">
+                <h2 class="tabs-title">
+                    <i class="fas fa-filter"></i>
+                    Filter Recommendations
+                </h2>
+                <button id="refreshRecommendations" class="refresh-btn">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>Generate New</span>
+                </button>
+            </div>
+            
+            <div class="tab-buttons">
+                <button class="tab-btn active all" data-filter="all">
+                    <i class="fas fa-list"></i>
+                    All Internships
+                    <span class="tab-count" id="allCount">{{ recommendations|length }}</span>
+                </button>
+                <button class="tab-btn government" data-filter="government">
+                    <i class="fas fa-university"></i>
+                    Government
+                    <span class="tab-count" id="govCount">{{ recommendations|selectattr("type", "equalto", "government")|list|length }}</span>
+                </button>
+                <button class="tab-btn private" data-filter="private-based">
+                    <i class="fas fa-building"></i>
+                    Private-Based
+                    <span class="tab-count" id="privateCount">{{ recommendations|selectattr("type", "equalto", "private-based")|list|length }}</span>
+                </button>
+            </div>
+
+            <div id="loadingSpinner" class="loading">
+                <i class="fas fa-spinner fa-spin fa-2x"></i>
+                <p>Generating personalized recommendations...</p>
+            </div>
+        </div>
+
+        <!-- RECOMMENDATIONS CONTAINER -->
+        <div class="recommendations-container">
+            <div class="recommendations-grid" id="recommendationsContainer">
+                {% for recommendation in recommendations %}
+                <div class="recommendation-card {{ 'government-card' if recommendation.type == 'government' else 'private-card' }}" 
+                     data-type="{{ recommendation.type }}">
+                    <div class="card-header">
+                        <div class="company-info">
+                            <h4>{{ recommendation.company }}</h4>
+                            <div class="job-title">{{ recommendation.title }}</div>
+                        </div>
+                        <span class="type-badge {{ recommendation.type }}">
+                            {% if recommendation.type == 'government' %}
+                                <i class="fas fa-university"></i> Government
+                            {% else %}
+                                <i class="fas fa-building"></i> Private-Based
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <div class="card-content">
+                        <div class="info-row">
+                            <span class="info-label"><i class="fas fa-industry"></i> Sector:</span>
+                            <span class="info-value">{{ recommendation.sector }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label"><i class="fas fa-clock"></i> Duration:</span>
+                            <span class="info-value">{{ recommendation.duration }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label"><i class="fas fa-map-marker-alt"></i> Location:</span>
+                            <span class="info-value">{{ recommendation.location }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label"><i class="fas fa-rupee-sign"></i> Stipend:</span>
+                            <span class="info-value" style="color: var(--success-color); font-weight: 600;">
+                                {{ recommendation.stipend }}
+                            </span>
+                        </div>
+
+                        <div class="description">
+                            {{ recommendation.description }}
+                        </div>
+
+                        {% if recommendation.skills %}
+                        <div class="skills-match">
+                            <!-- 🔧 NEW: CIRCULAR SKILL MATCH INDICATOR -->
+                            <div class="skill-match-circle">
+                                <div class="circle-bg" style="--percentage: {{ recommendation.skill_match_score or 75 }}">
+                                    <div class="circle-inner">
+                                        <div class="match-percentage">{{ recommendation.skill_match_score or 75 }}%</div>
+                                        <div class="match-label">Match</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="skills-info">
+                                <div style="margin-bottom: 8px;">
+                                    <strong><i class="fas fa-tools"></i> Required Skills:</strong>
+                                </div>
+                                <div class="required-skills">
+                                    {% for skill in recommendation.skills %}
+                                        <span class="skill-chip">{{ skill }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Empty state for when no recommendations match filter -->
+            <div class="empty-state" id="emptyState" style="display: none;">
+                <i class="fas fa-search"></i>
+                <h3>No Recommendations Found</h3>
+                <p>No internships match your current filter. Try selecting a different category or generate fresh recommendations.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/recommendations.js') }}"></script>
+</body>
+</html>

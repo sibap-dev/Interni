@@ -1,0 +1,578 @@
+<!-- SHARED NAVBAR FOR ALL COMPANY PAGES -->
+<style>
+    /* UNIVERSAL NAVBAR STYLES - EXACT SAME FOR ALL PAGES */
+    * {
+        box-sizing: border-box;
+    }
+    
+    body {
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+    }
+    
+    /* UNIVERSAL FOOTER STYLES - EXACT SAME FOR ALL PAGES */
+    body .footer {
+        background: linear-gradient(135deg, #6a1b9a, #4a148c) !important;
+        color: white !important;
+        padding: 3rem 0 1rem !important;
+        margin-top: 4rem !important;
+        width: 100% !important;
+    }
+    
+    body .footer .container {
+        max-width: 1200px !important;
+        margin: 0 auto !important;
+        padding: 0 20px !important;
+    }
+    
+    body .footer-content {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
+        gap: 2rem !important;
+        margin-bottom: 2rem !important;
+    }
+    
+    body .footer-section h3 {
+        font-size: 1.2rem !important;
+        margin-bottom: 1rem !important;
+        color: white !important;
+        font-weight: 600 !important;
+    }
+    
+    body .footer-section p {
+        color: rgba(255, 255, 255, 0.9) !important;
+        line-height: 1.6 !important;
+        margin: 0 !important;
+    }
+    
+    body .footer-section a {
+        display: block !important;
+        color: rgba(255, 255, 255, 0.8) !important;
+        text-decoration: none !important;
+        margin-bottom: 0.5rem !important;
+        transition: color 0.3s !important;
+    }
+    
+    body .footer-section a:hover {
+        color: white !important;
+        text-decoration: underline !important;
+    }
+    
+    body .footer-section a i {
+        margin-right: 0.5rem !important;
+        width: 16px !important;
+    }
+    
+    body .footer .copyright {
+        text-align: center !important;
+        padding-top: 2rem !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.2) !important;
+        color: rgba(255, 255, 255, 0.8) !important;
+    }
+    
+    body .footer .copyright p {
+        margin: 0 !important;
+        font-size: 0.9rem !important;
+    }
+    
+    /* Navbar Container */
+    body header {
+        background: linear-gradient(135deg, #6a1b9a, #4a148c) !important;
+        color: white !important;
+        padding: 1rem 0 !important;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 1000 !important;
+        width: 100% !important;
+        margin: 0 !important;
+    }
+    
+    body header .nav-container {
+        max-width: 1400px !important;
+        margin: 0 auto !important;
+        padding: 0 20px !important;
+        display: grid !important;
+        grid-template-columns: minmax(180px, auto) 1fr minmax(220px, auto) !important;
+        align-items: center !important;
+        gap: 15px !important;
+    }
+    
+    /* Logo Section */
+    body header .logo {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        min-width: 0 !important;
+    }
+    
+    body header .logo-icon {
+        font-size: 1.8rem !important;
+        flex-shrink: 0 !important;
+    }
+    
+    body header .logo h1 {
+        font-size: 1.2rem !important;
+        font-weight: 600 !important;
+        margin: 0 !important;
+        color: white !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+    
+    /* Navigation Links */
+    body header nav {
+        justify-self: center !important;
+        min-width: 0 !important;
+    }
+    
+    body header nav ul {
+        display: flex !important;
+        list-style: none !important;
+        gap: 8px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    
+    body header nav li {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    body header nav a {
+        color: white !important;
+        text-decoration: none !important;
+        font-weight: 500 !important;
+        padding: 6px 8px !important;
+        border-radius: 6px !important;
+        transition: background-color 0.3s !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+        font-size: 0.85rem !important;
+        white-space: nowrap !important;
+    }
+    
+    body header nav a:hover,
+    body header nav a.active {
+        background-color: rgba(255, 255, 255, 0.2) !important;
+    }
+    
+    body header nav a i {
+        font-size: 0.85rem !important;
+    }
+    
+    /* User Menu Section */
+    body header .user-menu {
+        display: flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+        justify-self: end !important;
+        flex-shrink: 0 !important;
+    }
+    
+    body header .user-info {
+        text-align: right !important;
+        white-space: nowrap !important;
+        padding-right: 5px !important;
+        display: block !important;
+    }
+    
+    body header .user-name {
+        font-weight: 600 !important;
+        margin: 0 0 2px 0 !important;
+        font-size: 0.85rem !important;
+        color: white !important;
+        line-height: 1.2 !important;
+    }
+    
+    body header .user-role {
+        font-size: 0.7rem !important;
+        opacity: 0.9 !important;
+        margin: 0 !important;
+        color: white !important;
+        line-height: 1.2 !important;
+    }
+    
+    body header .user-role {
+        font-size: 0.75rem !important;
+        opacity: 0.9 !important;
+        margin: 0 !important;
+        color: white !important;
+        line-height: 1.2 !important;
+    }
+    
+    body header .avatar {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        border-radius: 50% !important;
+        background-color: rgba(255, 255, 255, 0.2) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-weight: bold !important;
+        font-size: 1.1rem !important;
+        color: white !important;
+        flex-shrink: 0 !important;
+    }
+    
+    body header .logout-btn {
+        background: rgba(255, 255, 255, 0.2) !important;
+        padding: 8px 16px !important;
+        border-radius: 6px !important;
+        color: white !important;
+        text-decoration: none !important;
+        transition: all 0.3s ease !important;
+        font-size: 0.9rem !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        font-weight: 500 !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+    }
+    
+    body header .logout-btn:hover {
+        background: rgba(255, 255, 255, 0.3) !important;
+        transform: translateY(-2px) !important;
+    }
+    
+    body header .logout-btn i {
+        font-size: 0.85rem !important;
+    }
+    
+    /* Hamburger Menu (Mobile) */
+    body header .hamburger {
+        display: none !important;
+        flex-direction: column !important;
+        gap: 4px !important;
+        cursor: pointer !important;
+        background: none !important;
+        border: none !important;
+        padding: 5px !important;
+    }
+    
+    body header .hamburger span {
+        width: 25px !important;
+        height: 3px !important;
+        background-color: white !important;
+        border-radius: 2px !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    body header .hamburger.active span:nth-child(1) {
+        transform: rotate(45deg) translate(6px, 6px) !important;
+    }
+    
+    body header .hamburger.active span:nth-child(2) {
+        opacity: 0 !important;
+    }
+    
+    body header .hamburger.active span:nth-child(3) {
+        transform: rotate(-45deg) translate(6px, -6px) !important;
+    }
+    
+    /* Mobile Menu */
+    body header .mobile-menu {
+        display: none !important;
+        position: absolute !important;
+        top: 100% !important;
+        left: 0 !important;
+        right: 0 !important;
+        background: #4a148c !important;
+        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2) !important;
+        z-index: 999 !important;
+    }
+    
+    body header .mobile-menu.active {
+        display: block !important;
+    }
+    
+    body header .mobile-menu ul {
+        flex-direction: column !important;
+        gap: 0 !important;
+    }
+    
+    body header .mobile-menu li {
+        width: 100% !important;
+    }
+    
+    body header .mobile-menu a {
+        display: block !important;
+        padding: 15px 20px !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 0 !important;
+    }
+    
+    body header .mobile-menu a:hover {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    /* Desktop Navigation */
+    body header .desktop-nav {
+        display: block !important;
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 1400px) {
+        body header .logo h1 {
+            font-size: 1.2rem !important;
+        }
+        
+        body header nav ul {
+            gap: 12px !important;
+        }
+    }
+    
+    @media (max-width: 1200px) {
+        body header .logo h1 {
+            font-size: 1.1rem !important;
+        }
+        
+        body header nav ul {
+            gap: 10px !important;
+        }
+        
+        body header nav a {
+            font-size: 0.9rem !important;
+            padding: 6px 10px !important;
+        }
+        
+        body header .user-menu {
+            gap: 12px !important;
+        }
+    }
+    
+    @media (max-width: 1100px) {
+        body header .user-info {
+            display: none !important;
+        }
+        
+        body header .user-menu {
+            gap: 10px !important;
+        }
+    }
+    
+    @media (max-width: 992px) {
+        body header .desktop-nav {
+            display: none !important;
+        }
+        
+        body header .hamburger {
+            display: flex !important;
+        }
+        
+        body header .nav-container {
+            position: relative !important;
+            display: flex !important;
+            justify-content: space-between !important;
+        }
+        
+        body header .logo h1 {
+            font-size: 1rem !important;
+        }
+        
+        body header .user-info {
+            display: none !important;
+        }
+        
+        body header .logout-btn span {
+            display: none !important;
+        }
+        
+        body header .logout-btn {
+            padding: 8px 12px !important;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        body header .nav-container {
+            padding: 0 15px !important;
+        }
+        
+        body header .logo h1 {
+            font-size: 0.9rem !important;
+        }
+        
+        body header .logo-icon {
+            font-size: 1.5rem !important;
+        }
+        
+        body header .avatar {
+            width: 35px !important;
+            height: 35px !important;
+            font-size: 1rem !important;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        body header {
+            padding: 0.75rem 0 !important;
+        }
+        
+        body header .nav-container {
+            padding: 0 10px !important;
+        }
+        
+        body header .logo h1 {
+            font-size: 0.8rem !important;
+        }
+        
+        body header .logo-icon {
+            font-size: 1.3rem !important;
+        }
+        
+        body header .user-menu {
+            gap: 8px !important;
+        }
+        
+        body header .avatar {
+            width: 30px !important;
+            height: 30px !important;
+            font-size: 0.9rem !important;
+        }
+        
+        body header .logout-btn {
+            padding: 6px 10px !important;
+            font-size: 0.85rem !important;
+        }
+        
+        /* Footer responsive */
+        body .footer {
+            padding: 2rem 0 1rem !important;
+        }
+        
+        body .footer-content {
+            grid-template-columns: 1fr !important;
+            gap: 1.5rem !important;
+        }
+        
+        body .footer-section {
+            text-align: center !important;
+        }
+    }
+</style>
+
+<header>
+    <div class="nav-container">
+        <!-- Logo -->
+        <div class="logo">
+            <span class="logo-icon">🏢</span>
+            <h1>PM Internship Scheme</h1>
+        </div>
+        
+        <!-- Hamburger Menu (Mobile) -->
+        <button class="hamburger" onclick="toggleMobileMenu()">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        
+        <!-- Desktop Navigation -->
+        <nav class="desktop-nav">
+            <ul>
+                <li><a href="{{ url_for('company_home') }}" {% if request.endpoint == 'company_home' %}class="active"{% endif %}>
+                    <i class="fas fa-home"></i>Home
+                </a></li>
+                <li><a href="{{ url_for('company_internships') }}" {% if request.endpoint == 'company_internships' %}class="active"{% endif %}>
+                    <i class="fas fa-briefcase"></i>Internships
+                </a></li>
+                <li><a href="{{ url_for('company_candidates') }}" {% if request.endpoint == 'company_candidates' %}class="active"{% endif %}>
+                    <i class="fas fa-users"></i>Candidates
+                </a></li>
+                <li><a href="{{ url_for('company_analytics') }}" {% if request.endpoint == 'company_analytics' %}class="active"{% endif %}>
+                    <i class="fas fa-chart-bar"></i>Analytics
+                </a></li>
+                <li><a href="{{ url_for('company_applications') }}" {% if request.endpoint == 'company_applications' %}class="active"{% endif %}>
+                    <i class="fas fa-file-alt"></i>Apps
+                </a></li>
+                <li><a href="{{ url_for('company_profile') }}" {% if request.endpoint == 'company_profile' %}class="active"{% endif %}>
+                    <i class="fas fa-user"></i>Profile
+                </a></li>
+            </ul>
+        </nav>
+        
+        <!-- User Menu -->
+        <div class="user-menu">
+            <div class="user-info">
+                <div class="user-name">{{ company.company_name if company else 'Company Name' }}</div>
+                <div class="user-role">HR Manager</div>
+            </div>
+            <div class="avatar">{{ company.company_name[0] if company else 'C' }}</div>
+            <a href="{{ url_for('logout') }}" class="logout-btn">
+                <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+            </a>
+        </div>
+    </div>
+    
+    <!-- Mobile Navigation Menu -->
+    <nav class="mobile-menu" id="mobileMenu">
+        <ul>
+            <li><a href="{{ url_for('company_home') }}" {% if request.endpoint == 'company_home' %}class="active"{% endif %}>
+                <i class="fas fa-tachometer-alt"></i>Dashboard
+            </a></li>
+            <li><a href="{{ url_for('company_internships') }}" {% if request.endpoint == 'company_internships' %}class="active"{% endif %}>
+                <i class="fas fa-briefcase"></i>Internships
+            </a></li>
+            <li><a href="{{ url_for('company_candidates') }}" {% if request.endpoint == 'company_candidates' %}class="active"{% endif %}>
+                <i class="fas fa-users"></i>Candidates
+            </a></li>
+            <li><a href="{{ url_for('company_analytics') }}" {% if request.endpoint == 'company_analytics' %}class="active"{% endif %}>
+                <i class="fas fa-chart-bar"></i>Analytics
+            </a></li>
+            <li><a href="{{ url_for('company_applications') }}" {% if request.endpoint == 'company_applications' %}class="active"{% endif %}>
+                <i class="fas fa-file-alt"></i>Applications
+            </a></li>
+            <li><a href="{{ url_for('company_profile') }}" {% if request.endpoint == 'company_profile' %}class="active"{% endif %}>
+                <i class="fas fa-user-circle"></i>Profile
+            </a></li>
+            <li><a href="{{ url_for('logout') }}">
+                <i class="fas fa-sign-out-alt"></i>Logout
+            </a></li>
+        </ul>
+    </nav>
+</header>
+
+<script>
+function toggleMobileMenu() {
+    const mobileMenu = document.getElementById('mobileMenu');
+    const hamburger = document.querySelector('.hamburger');
+    
+    if (mobileMenu && hamburger) {
+        mobileMenu.classList.toggle('active');
+        hamburger.classList.toggle('active');
+    }
+}
+
+// Close mobile menu when clicking outside
+document.addEventListener('click', function(event) {
+    const mobileMenu = document.getElementById('mobileMenu');
+    const hamburger = document.querySelector('.hamburger');
+    const header = document.querySelector('header');
+    
+    if (mobileMenu && hamburger && header) {
+        if (!header.contains(event.target)) {
+            mobileMenu.classList.remove('active');
+            hamburger.classList.remove('active');
+        }
+    }
+});
+
+// Close mobile menu on window resize to desktop
+window.addEventListener('resize', function() {
+    if (window.innerWidth > 992) {
+        const mobileMenu = document.getElementById('mobileMenu');
+        const hamburger = document.querySelector('.hamburger');
+        if (mobileMenu && hamburger) {
+            mobileMenu.classList.remove('active');
+            hamburger.classList.remove('active');
+        }
+    }
+});
+</script>

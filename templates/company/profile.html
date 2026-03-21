@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Profile - PM Internship Scheme</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --primary-dark: #0d47a1;
+            --secondary: #34a853;
+            --warning: #f9a825;
+            --danger: #ea4335;
+            --light: #f8f9fa;
+            --dark: #202124;
+            --gray: #5f6368;
+            --light-gray: #dadce0;
+            --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            --company-primary: #6a1b9a;
+            --company-dark: #4a148c;
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .profile-hero {
+            padding: 2rem 0;
+            background: white;
+            border-bottom: 1px solid var(--light-gray);
+        }
+        
+        .hero-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .hero-text h1 {
+            font-size: 2rem;
+            color: var(--company-dark);
+            margin-bottom: 0.5rem;
+        }
+        
+        .hero-text p {
+            color: var(--gray);
+            max-width: 600px;
+        }
+        
+        .profile-actions {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background-color: var(--company-primary);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: var(--card-shadow);
+        }
+        
+        .btn:hover {
+            background-color: var(--company-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--company-primary);
+            color: var(--company-primary);
+        }
+        
+        .btn-outline:hover {
+            background: var(--company-primary);
+            color: white;
+        }
+        
+        .btn-success {
+            background-color: var(--secondary);
+        }
+        
+        .btn-success:hover {
+            background-color: #2e8b47;
+        }
+        
+        .btn-warning {
+            background-color: var(--warning);
+        }
+        
+        .btn-warning:hover {
+            background-color: #f57f17;
+        }
+        
+        .btn-danger {
+            background-color: var(--danger);
+        }
+        
+        .btn-danger:hover {
+            background-color: #d32f2f;
+        }
+        
+        .profile-section {
+            padding: 2rem 0;
+        }
+        
+        .profile-content {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 2rem;
+        }
+        
+        .profile-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .profile-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+        }
+        
+        .profile-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--light-gray);
+            margin-bottom: 1.5rem;
+        }
+        
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--company-primary), var(--company-dark));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            color: white;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+        
+        .profile-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+        
+        .profile-title {
+            color: var(--gray);
+            margin-bottom: 1rem;
+        }
+        
+        .profile-status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            background: #e8f5e9;
+            color: var(--secondary);
+        }
+        
+        .profile-details {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .detail-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--company-primary);
+        }
+        
+        .detail-content h4 {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        
+        .detail-content p {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+        
+        .match-score {
+            text-align: center;
+            padding: 1.5rem;
+        }
+        
+        .match-value {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--company-primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .match-label {
+            color: var(--gray);
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .match-bar {
+            height: 8px;
+            background: var(--light-gray);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+        
+        .match-fill {
+            height: 100%;
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+        
+        .info-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+        }
+        
+        .info-card.full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .info-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        .timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .timeline-item {
+            display: flex;
+            gap: 1rem;
+            position: relative;
+        }
+        
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: 20px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--light-gray);
+        }
+        
+        .timeline-item:last-child::before {
+            display: none;
+        }
+        
+        .timeline-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--company-primary);
+            z-index: 1;
+        }
+        
+        .timeline-content {
+            flex: 1;
+            padding-bottom: 1.5rem;
+        }
+        
+        .timeline-content h4 {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .timeline-content .meta {
+            color: var(--gray);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .timeline-content p {
+            color: var(--dark);
+        }
+        
+        .project-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+        
+        .project-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.3s;
+        }
+        
+        .project-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .project-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+        
+        .project-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--dark);
+        }
+        
+        .project-links {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .project-link {
+            color: var(--gray);
+            font-size: 1.2rem;
+            transition: color 0.3s;
+        }
+        
+        .project-link:hover {
+            color: var(--company-primary);
+        }
+        
+        .project-description {
+            color: var(--gray);
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+        
+        .project-tech {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .tech-tag {
+            background: var(--light);
+            color: var(--dark);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+        
+        .notes-section {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+        }
+        
+        .notes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .note-item {
+            padding: 1rem;
+            border-radius: 8px;
+            background: var(--light);
+        }
+        
+        .note-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        
+        .note-author {
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        .note-date {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+        
+        .note-content {
+            color: var(--dark);
+        }
+        
+        .note-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .form-label {
+            font-weight: 500;
+            color: var(--dark);
+        }
+        
+        .form-control {
+            padding: 12px;
+            border: 1px solid var(--light-gray);
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: var(--company-primary);
+        }
+        
+        textarea.form-control {
+            min-height: 120px;
+            resize: vertical;
+        }
+        
+        .footer {
+            background-color: var(--dark);
+            color: white;
+            padding: 3rem 0;
+            text-align: center;
+            margin-top: 2rem;
+        }
+        
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            text-align: left;
+        }
+        
+        .footer-section h3 {
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+        
+        .footer-section p, .footer-section a {
+            color: #bdc1c6;
+            margin-bottom: 0.5rem;
+            display: block;
+            text-decoration: none;
+        }
+        
+        .copyright {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid #3c4043;
+            color: #9aa0a6;
+        }
+        
+        /* Status Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .modal-title {
+            font-size: 1.5rem;
+            color: var(--dark);
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--gray);
+        }
+        
+        .modal-body {
+            margin-bottom: 2rem;
+        }
+        
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+        
+        /* Media Queries for Responsive Design */
+        @media (max-width: 1200px) {
+            .profile-content {
+                grid-template-columns: 300px 1fr;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .project-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 992px) {
+            .profile-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .profile-sidebar {
+                order: 2;
+            }
+            
+            .profile-main {
+                order: 1;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .hero-content {
+                flex-direction: column;
+                gap: 1.5rem;
+                text-align: center;
+            }
+            
+            .profile-actions {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .tab-navigation {
+                flex-wrap: wrap;
+            }
+            
+            .tab-btn {
+                flex: 1 0 45%;
+                margin-bottom: 0.5rem;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .logo h1 {
+                font-size: 1.1rem;
+            }
+            
+            .profile-avatar {
+                width: 100px;
+                height: 100px;
+                font-size: 2rem;
+            }
+            
+            .profile-name {
+                font-size: 1.3rem;
+            }
+            
+            .match-value {
+                font-size: 2.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% set page_title = "Profile" %}
+    {% include 'company/navbar.html' %}
+
+    <section class="profile-hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1>Company Profile</h1>
+                    <p>Manage your company information, settings, and verification status.</p>
+                </div>
+                <div class="profile-actions">
+                    <button class="btn btn-outline" onclick="openEditModal()">
+                        <i class="fas fa-edit"></i> Edit Profile
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="profile-section">
+        <div class="container">
+            <div class="profile-content">
+                <div class="profile-sidebar">
+                    <div class="profile-card">
+                        <div class="profile-header">
+                            <div class="profile-avatar">RS</div>
+                            <h2 class="profile-name">Rahul Sharma</h2>
+                            <p class="profile-title">B.Tech Computer Science, 3rd Year</p>
+                            <div class="profile-status">Shortlisted</div>
+                        </div>
+                        <div class="profile-details">
+                            <div class="detail-item">
+                                <div class="detail-icon">
+                                    <i class="fas fa-university"></i>
+                                </div>
+                                <div class="detail-content">
+                                    <h4>Delhi Technological University</h4>
+                                    <p>Computer Science Engineering</p>
+                                </div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-icon">
+                                    <i class="fas fa-graduation-cap"></i>
+                                </div>
+                                <div class="detail-content">
+                                    <h4>CGPA: 8.9/10</h4>
+                                    <p>Expected Graduation: May 2025</p>
+                                </div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-icon">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                </div>
+                                <div class="detail-content">
+                                    <h4>New Delhi, India</h4>
+                                    <p>Willing to relocate</p>
+                                </div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-icon">
+                                    <i class="fas fa-phone"></i>
+                                </div>
+                                <div class="detail-content">
+                                    <h4>+91 98765 43210</h4>
+                                    <p>Primary contact</p>
+                                </div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-icon">
+                                    <i class="fas fa-envelope"></i>
+                                </div>
+                                <div class="detail-content">
+                                    <h4>rahul.sharma@email.com</h4>
+                                    <p>Email address</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-card match-score">
+                        <div class="match-value">92%</div>
+                        <div class="match-label">AI Match Score</div>
+                        <div class="match-bar">
+                            <div class="match-fill" style="width: 92%"></div>
+                        </div>
+                        <p>Excellent match for Data Science Intern position</p>
+                    </div>
+                    
+                    <div class="skills-card">
+                        <div class="card-header">
+                            <div class="card-title">Technical Skills</div>
+                        </div>
+                        <div class="skills-list">
+                            <div class="skill-tag highlight">Python</div>
+                            <div class="skill-tag">Machine Learning</div>
+                            <div class="skill-tag">Data Analysis</div>
+                            <div class="skill-tag">SQL</div>
+                            <div class="skill-tag">TensorFlow</div>
+                            <div class="skill-tag">Pandas</div>
+                            <div class="skill-tag">NumPy</div>
+                            <div class="skill-tag">Data Visualization</div>
+                            <div class="skill-tag">Statistics</div>
+                            <div class="skill-tag">Git</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="profile-main">
+                    <div class="tab-navigation">
+                        <button class="tab-btn active" data-tab="overview">Overview</button>
+                        <button class="tab-btn" data-tab="experience">Experience</button>
+                        <button class="tab-btn" data-tab="projects">Projects</button>
+                        <button class="tab-btn" data-tab="education">Education</button>
+                        <button class="tab-btn" data-tab="notes">Notes</button>
+                    </div>
+                    
+                    <div class="tab-content active" id="overview-tab">
+                        <div class="info-grid">
+                            <div class="info-card">
+                                <div class="info-header">
+                                    <div class="info-title">Application Details</div>
+                                </div>
+                                <div class="profile-details">
+                                    <div class="detail-item">
+                                        <div class="detail-icon">
+                                            <i class="fas fa-briefcase"></i>
+                                        </div>
+                                        <div class="detail-content">
+                                            <h4>Data Science Intern</h4>
+                                            <p>Applied Position</p>
+                                        </div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-icon">
+                                            <i class="fas fa-calendar-day"></i>
+                                        </div>
+                                        <div class="detail-content">
+                                            <h4>March 15, 2024</h4>
+                                            <p>Application Date</p>
+                                        </div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-icon">
+                                            <i class="fas fa-clock"></i>
+                                        </div>
+                                        <div class="detail-content">
+                                            <h4>2 weeks ago</h4>
+                                            <p>Time since application</p>
+                                        </div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-icon">
+                                            <i class="fas fa-file-alt"></i>
+                                        </div>
+                                        <div class="detail-content">
+                                            <h4>Resume.pdf</h4>
+                                            <p>Attached documents</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="info-card">
+                                <div class="info-header">
+                                    <div class="info-title">Assessment Score</div>
+                                </div>
+                                <div class="profile-details">
+                                    <div class="detail-item">
+                                        <div class="detail-icon">
+                                            <i class="fas fa-code"></i>
+                                        </div>
+                                        <div class="detail-content">
+                                            <h4>85%</h4>
+                                            <p>Technical Test</p>
+                                        </div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-icon">
+                                            <i class="fas fa-brain"></i>
+                                        </div>
+                                        <div class="detail-content">
+                                            <h4>92%</h4>
+                                            <p>Problem Solving</p>
+                                        </div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-icon">
+                                            <i class="fas fa-comments"></i>
+                                        </div>
+                                        <div class="detail-content">
+                                            <h4>78%</h4>
+                                            <p>Communication Skills</p>
+                                        </div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-icon">
+                                            <i class="fas fa-chart-line"></i>
+                                        </div>
+                                        <div class="detail-content">
+                                            <h4>88%</h4>
+                                            <p>Overall Score</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="info-card full-width">
+                                <div class="info-header">
+                                    <div class="info-title">Candidate Summary</div>
+                                </div>
+                                <p>Rahul is a third-year Computer Science student at Delhi Technological University with a strong academic record and demonstrated interest in data science and machine learning. He has completed several relevant projects and has a solid foundation in Python, data analysis, and statistical modeling.</p>
+                                <p style="margin-top: 1rem;">His technical skills are well-aligned with the Data Science Intern position requirements, particularly in Python programming, machine learning frameworks, and data visualization. Rahul has shown initiative through personal projects and participation in hackathons.</p>
+                                <p style="margin-top: 1rem;"><strong>Strengths:</strong> Strong technical foundation, project experience, academic performance, problem-solving skills.</p>
+                                <p><strong>Areas for Development:</strong> Could benefit from more industry experience, presentation skills.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" id="experience-tab">
+                        <div class="info-card full-width">
+                            <div class="info-header">
+                                <div class="info-title">Work Experience</div>
+                            </div>
+                            <div class="timeline">
+                                <div class="timeline-item">
+                                    <div class="timeline-icon">
+                                        <i class="fas fa-briefcase"></i>
+                                    </div>
+                                    <div class="timeline-content">
+                                        <h4>Data Science Intern</h4>
+                                        <div class="meta">TechStart Innovations | June 2023 - August 2023</div>
+                                        <p>Assisted in developing machine learning models for customer segmentation. Performed data cleaning and preprocessing on large datasets. Created data visualizations to communicate insights to stakeholders.</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="timeline-item">
+                                    <div class="timeline-icon">
+                                        <i class="fas fa-laptop-code"></i>
+                                    </div>
+                                    <div class="timeline-content">
+                                        <h4>Freelance Web Developer</h4>
+                                        <div class="meta">Self-Employed | January 2023 - Present</div>
+                                        <p>Developed and maintained websites for small businesses. Implemented responsive designs and optimized sites for performance. Provided ongoing maintenance and support services.</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="timeline-item">
+                                    <div class="timeline-icon">
+                                        <i class="fas fa-chalkboard-teacher"></i>
+                                    </div>
+                                    <div class="timeline-content">
+                                        <h4>Programming Tutor</h4>
+                                        <div class="meta">DTU Coding Club | September 2022 - December 2022</div>
+                                        <p>Conducted programming workshops for first-year students. Assisted students with Python programming concepts and problem-solving techniques. Developed teaching materials and coding exercises.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" id="projects-tab">
+                        <div class="project-grid">
+                            <div class="project-card">
+                                <div class="project-header">
+                                    <h3 class="project-title">Customer Churn Prediction</h3>
+                                    <div class="project-links">
+                                        <a href="https://github.com" class="project-link" title="View Code" target="_blank"><i class="fab fa-github"></i></a>
+                                        <a href="https://example.com" class="project-link" title="Live Demo" target="_blank"><i class="fas fa-external-link-alt"></i></a>
+                                    </div>
+                                </div>
+                                <p class="project-description">Built a machine learning model to predict customer churn for a telecom company using Python and Scikit-learn. Achieved 87% accuracy in predictions.</p>
+                                <div class="project-tech">
+                                    <span class="tech-tag">Python</span>
+                                    <span class="tech-tag">Scikit-learn</span>
+                                    <span class="tech-tag">Pandas</span>
+                                    <span class="tech-tag">Matplotlib</span>
+                                </div>
+                            </div>
+                            
+                            <div class="project-card">
+                                <div class="project-header">
+                                    <h3 class="project-title">Sentiment Analysis Tool</h3>
+                                    <div class="project-links">
+                                        <a href="https://github.com" class="project-link" title="View Code" target="_blank"><i class="fab fa-github"></i></a>
+                                    </div>
+                                </div>
+                                <p class="project-description">Developed a web application for analyzing sentiment in customer reviews using Natural Language Processing techniques and Flask framework.</p>
+                                <div class="project-tech">
+                                    <span class="tech-tag">Python</span>
+                                    <span class="tech-tag">Flask</span>
+                                    <span class="tech-tag">NLTK</span>
+                                    <span class="tech-tag">JavaScript</span>
+                                </div>
+                            </div>
+                            
+                            <div class="project-card">
+                                <div class="project-header">
+                                    <h3 class="project-title">E-commerce Sales Dashboard</h3>
+                                    <div class="project-links">
+                                        <a href="https://github.com" class="project-link" title="View Code" target="_blank"><i class="fab fa-github"></i></a>
+                                        <a href="https://example.com" class="project-link" title="Live Demo" target="_blank"><i class="fas fa-external-link-alt"></i></a>
+                                    </div>
+                                </div>
+                                <p class="project-description">Created an interactive dashboard for visualizing e-commerce sales data using Tableau. Implemented filters for date ranges, product categories, and regions.</p>
+                                <div class="project-tech">
+                                    <span class="tech-tag">Tableau</span>
+                                    <span class="tech-tag">SQL</span>
+                                    <span class="tech-tag">Data Visualization</span>
+                                </div>
+                            </div>
+                            
+                            <div class="project-card">
+                                <div class="project-header">
+                                    <h3 class="project-title">Image Classification Model</h3>
+                                    <div class="project-links">
+                                        <a href="https://github.com" class="project-link" title="View Code" target="_blank"><i class="fab fa-github"></i></a>
+                                    </div>
+                                </div>
+                                <p class="project-description">Trained a convolutional neural network to classify images from the CIFAR-10 dataset using TensorFlow and Keras. Achieved 78% accuracy on test data.</p>
+                                <div class="project-tech">
+                                    <span class="tech-tag">Python</span>
+                                    <span class="tech-tag">TensorFlow</span>
+                                    <span class="tech-tag">Keras</span>
+                                    <span class="tech-tag">CNN</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" id="education-tab">
+                        <div class="info-card full-width">
+                            <div class="info-header">
+                                <div class="info-title">Education</div>
+                            </div>
+                            <div class="timeline">
+                                <div class="timeline-item">
+                                    <div class="timeline-icon">
+                                        <i class="fas fa-university"></i>
+                                    </div>
+                                    <div class="timeline-content">
+                                        <h4>Bachelor of Technology in Computer Science</h4>
+                                        <div class="meta">Delhi Technological University | 2021 - 2025</div>
+                                        <p><strong>CGPA:</strong> 8.9/10</p>
+                                        <p><strong>Relevant Coursework:</strong> Data Structures & Algorithms, Database Management Systems, Machine Learning, Artificial Intelligence, Statistics for Data Science, Big Data Analytics</p>
+                                        <p><strong>Achievements:</strong> Dean's List (2022, 2023), Winner of University Hackathon 2022</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="timeline-item">
+                                    <div class="timeline-icon">
+                                        <i class="fas fa-school"></i>
+                                    </div>
+                                    <div class="timeline-content">
+                                        <h4>Higher Secondary Education</h4>
+                                        <div class="meta">Delhi Public School | 2019 - 2021</div>
+                                        <p><strong>Percentage:</strong> 94.2%</p>
+                                        <p><strong>Subjects:</strong> Physics, Chemistry, Mathematics, Computer Science</p>
+                                        <p><strong>Achievements:</strong> School Topper in Computer Science, National Science Olympiad Silver Medalist</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="info-card full-width">
+                            <div class="info-header">
+                                <div class="info-title">Certifications</div>
+                            </div>
+                            <div class="profile-details">
+                                <div class="detail-item">
+                                    <div class="detail-icon">
+                                        <i class="fas fa-certificate"></i>
+                                    </div>
+                                    <div class="detail-content">
+                                        <h4>Google Data Analytics Professional Certificate</h4>
+                                        <p>Issued: January 2023 | Credential ID: ABC123XYZ</p>
+                                    </div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-icon">
+                                        <i class="fas fa-certificate"></i>
+                                    </div>
+                                    <div class="detail-content">
+                                        <h4>Machine Learning Specialization - Coursera</h4>
+                                        <p>Issued: November 2022 | Credential ID: ML456DEF</p>
+                                    </div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-icon">
+                                        <i class="fas fa-certificate"></i>
+                                    </div>
+                                    <div class="detail-content">
+                                        <h4>Python for Data Science - Udemy</h4>
+                                        <p>Issued: August 2022 | Credential ID: PDS789GHI</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" id="notes-tab">
+                        <div class="notes-section">
+                            <div class="info-header">
+                                <div class="info-title">Candidate Notes</div>
+                            </div>
+                            
+                            <div class="notes-list">
+                                <div class="note-item">
+                                    <div class="note-header">
+                                        <span class="note-author">Sarah Johnson (HR Manager)</span>
+                                        <span class="note-date">March 18, 2024</span>
+                                    </div>
+                                    <div class="note-content">
+                                        <p>Strong technical background with relevant projects. Impressive academic record. Should proceed to technical interview.</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="note-item">
+                                    <div class="note-header">
+                                        <span class="note-author">Michael Chen (Tech Lead)</span>
+                                        <span class="note-date">March 20, 2024</span>
+                                    </div>
+                                    <div class="note-content">
+                                        <p>Reviewed technical assessment - scored highly on Python and problem-solving sections. Project experience aligns well with our needs.</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="note-item">
+                                    <div class="note-header">
+                                        <span class="note-author">Sarah Johnson (HR Manager)</span>
+                                        <span class="note-date">March 22, 2024</span>
+                                    </div>
+                                    <div class="note-content">
+                                        <p>Candidate has been shortlisted. Schedule technical interview for next week.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="note-form">
+                                <div class="form-group">
+                                    <label class="form-label">Add New Note</label>
+                                    <textarea class="form-control" placeholder="Enter your notes about this candidate..."></textarea>
+                                </div>
+                                <button class="btn">Save Note</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Status Update Modal -->
+    <div class="modal" id="statusModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Update Candidate Status</h3>
+                <button class="modal-close" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Update status for <strong>Rahul Sharma</strong>:</p>
+                <div class="form-group">
+                    <label class="form-label">New Status</label>
+                    <select class="form-control" id="statusSelect">
+                        <option value="new">New Application</option>
+                        <option value="review">Under Review</option>
+                        <option value="shortlisted" selected>Shortlisted</option>
+                        <option value="interview">Interview</option>
+                        <option value="waitlisted">Waitlisted</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="offer">Offer Extended</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes (Optional)</label>
+                    <textarea class="form-control" id="statusNotes" rows="3" placeholder="Add any notes about this status change..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelStatus">Cancel</button>
+                <button class="btn" id="confirmStatus">Update Status</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>PM Internship Scheme</h3>
+                    <p>Connecting talented students with innovative companies for meaningful internship experiences.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Quick Links</h3>
+                    <a href="{{ url_for('company_home') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                    <a href="{{ url_for('company_internships') }}"><i class="fas fa-briefcase"></i> Internships</a>
+                    <a href="{{ url_for('company_candidates') }}"><i class="fas fa-users"></i> Candidates</a>
+                    <a href="{{ url_for('company_analytics') }}"><i class="fas fa-chart-bar"></i> Analytics</a>
+                </div>
+                <div class="footer-section">
+                    <h3>Support</h3>
+                    <a href="{{ url_for('company_home') }}"><i class="fas fa-question-circle"></i> Help Center</a>
+                    <a href="{{ url_for('company_profile') }}"><i class="fas fa-envelope"></i> Contact Us</a>
+                    <a href="{{ url_for('company_profile') }}"><i class="fas fa-shield-alt"></i> Privacy Policy</a>
+                    <a href="{{ url_for('company_home') }}"><i class="fas fa-file-contract"></i> Terms of Service</a>
+                </div>
+            </div>
+            <div class="copyright">
+                <p>&copy; 2024 PM Internship Scheme. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Tab navigation
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const tabId = this.getAttribute('data-tab');
+                    
+                    // Remove active class from all tabs
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    tabContents.forEach(c => c.classList.remove('active'));
+                    
+                    // Add active class to current tab
+                    this.classList.add('active');
+                    document.getElementById(`${tabId}-tab`).classList.add('active');
+                });
+            });
+            
+            // Status update modal
+            const statusModal = document.getElementById('statusModal');
+            const closeModal = document.getElementById('closeModal');
+            const cancelStatus = document.getElementById('cancelStatus');
+            
+            // Function to open status modal
+            function openStatusModal() {
+                statusModal.classList.add('active');
+            }
+            
+            // Function to close status modal
+            function closeStatusModal() {
+                statusModal.classList.remove('active');
+                document.getElementById('statusNotes').value = '';
+            }
+            
+            // Event listeners for modal
+            closeModal.addEventListener('click', closeStatusModal);
+            cancelStatus.addEventListener('click', closeStatusModal);
+            
+            // Action buttons
+            document.getElementById('shortlistBtn').addEventListener('click', function() {
+                document.getElementById('statusSelect').value = 'shortlisted';
+                openStatusModal();
+            });
+            
+            document.getElementById('interviewBtn').addEventListener('click', function() {
+                document.getElementById('statusSelect').value = 'interview';
+                openStatusModal();
+            });
+            
+            document.getElementById('rejectBtn').addEventListener('click', function() {
+                document.getElementById('statusSelect').value = 'rejected';
+                openStatusModal();
+            });
+            
+            // Confirm status update
+            document.getElementById('confirmStatus').addEventListener('click', function() {
+                const newStatus = document.getElementById('statusSelect').value;
+                const notes = document.getElementById('statusNotes').value;
+                
+                // Update status in the UI
+                const statusElement = document.querySelector('.profile-status');
+                statusElement.textContent = getStatusText(newStatus);
+                statusElement.style.background = getStatusColor(newStatus);
+                
+                // Close modal and show confirmation
+                closeStatusModal();
+                alert(`Status updated to: ${getStatusText(newStatus)}`);
+            });
+            
+            // Helper functions for status
+            function getStatusText(status) {
+                const statusMap = {
+                    'new': 'New Application',
+                    'review': 'Under Review',
+                    'shortlisted': 'Shortlisted',
+                    'interview': 'Interview',
+                    'waitlisted': 'Waitlisted',
+                    'rejected': 'Rejected',
+                    'offer': 'Offer Extended'
+                };
+                return statusMap[status] || 'Unknown';
+            }
+            
+            function getStatusColor(status) {
+                const colorMap = {
+                    'new': '#e3f2fd',
+                    'review': '#fff8e1',
+                    'shortlisted': '#e8f5e9',
+                    'interview': '#e1f5fe',
+                    'waitlisted': '#f3e5f5',
+                    'rejected': '#ffebee',
+                    'offer': '#e8f5e9'
+                };
+                return colorMap[status] || '#e0e0e0';
+            }
+            
+            // Close modal when clicking outside
+            window.addEventListener('click', function(event) {
+                if (event.target === statusModal) {
+                    closeStatusModal();
+                }
+            });
+        
+        // Open edit modal
+        function openEditModal() {
+            document.getElementById('editProfileModal').classList.add('show');
+        }
+
+        // Close edit modal
+        function closeEditModal() {
+            document.getElementById('editProfileModal').classList.remove('show');
+        }
+
+        // Handle profile form submission
+        document.getElementById('profileForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const profileData = Object.fromEntries(formData.entries());
+            
+            // Convert empty strings to null
+            Object.keys(profileData).forEach(key => {
+                if (profileData[key] === '') {
+                    profileData[key] = null;
+                }
+            });
+            
+            try {
+                const response = await fetch('/api/company/profile', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(profileData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('Profile updated successfully!', 'success');
+                    closeEditModal();
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    showNotification(result.message || 'Failed to update profile', 'error');
+                }
+            } catch (error) {
+                showNotification('Network error. Please try again.', 'error');
+            }
+        });
+
+        // Change password function
+        function changePassword() {
+            const newPassword = prompt('Enter new password:');
+            const confirmPassword = prompt('Confirm new password:');
+            
+            if (newPassword && confirmPassword) {
+                if (newPassword === confirmPassword) {
+                    // Make API call to change password
+                    fetch('/api/company/change-password', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ new_password: newPassword })
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.success) {
+                            showNotification('Password changed successfully!', 'success');
+                        } else {
+                            showNotification(result.message || 'Failed to change password', 'error');
+                        }
+                    })
+                    .catch(() => showNotification('Network error', 'error'));
+                } else {
+                    showNotification('Passwords do not match', 'error');
+                }
+            }
+        }
+
+        // Download data function
+        function downloadData() {
+            window.open('/api/company/download-data', '_blank');
+            showNotification('Download started...', 'success');
+        }
+
+        // Request verification function
+        function requestVerification() {
+            if (confirm('This will submit your company information for verification. Continue?')) {
+                fetch('/api/company/request-verification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        showNotification('Verification request submitted!', 'success');
+                        setTimeout(() => window.location.reload(), 1000);
+                    } else {
+                        showNotification(result.message || 'Failed to submit request', 'error');
+                    }
+                })
+                .catch(() => showNotification('Network error', 'error'));
+            }
+        }
+
+        // Show notifications
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <div class="notification-content">
+                    <i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'exclamation-triangle' : 'info'}"></i>
+                    <span>${message}</span>
+                </div>
+                <button class="notification-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('editProfileModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEditModal();
+            }
+        });
+
+        // Close modal on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeEditModal();
+            }
+        });
+    </script>
+</body>
+</html>
