@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ current_language or 'en' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -26,7 +26,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
 
 </head>
-<body>
+<body data-language="{{ current_language or 'en' }}">
     <!-- Header Section -->
     <header class="header">
         <button class="profile-toggle" id="profileToggle">
@@ -97,9 +97,11 @@
             
             <ul class="profile-menu">
                 <li><a href="{{ url_for('profile') }}"><i class="fas fa-user-circle"></i> {{ t('sidebar.myProfile') }}</a></li>
-                <li><a href="#"><i class="fas fa-file-alt"></i> {{ t('sidebar.myApplications') }}</a></li>
-                <li><a href="{{url_for('recommendations') }}"><i class="fas fa-briefcase"></i> {{ t('sidebar.internshipOpportunities') }}</a></li>
-                <li><a href="{{ url_for('ats') }}"><i class="fas fa-search"></i> {{ t('sidebar.atsMatching') }}</a></li>
+                <li><a href="{{ url_for('my_applications') }}"><i class="fas fa-file-alt"></i> {{ t('sidebar.myApplications') }}</a></li>
+                <li><a href="{{ url_for('internships_list') }}"><i class="fas fa-briefcase"></i> Browse Internships</a></li>
+                <li><a href="{{url_for('recommendations') }}"><i class="fas fa-robot"></i> {{ t('sidebar.internshipOpportunities') }}</a></li>
+                    <li><a href="{{ url_for('team_dashboard') }}"><i class="fas fa-people-group"></i> Team Dashboard</a></li>
+                    <li><a href="{{ url_for('ats') }}"><i class="fas fa-search"></i> {{ t('sidebar.atsMatching') }}</a></li>
                 <li><a href="#"><i class="fas fa-calendar-alt"></i> {{ t('sidebar.importantDates') }}</a></li>
                 <li><a href="#"><i class="fas fa-download"></i> {{ t('sidebar.downloads') }}</a></li>
                 <li><a href="#"><i class="fas fa-cog"></i> {{ t('sidebar.settings') }}</a></li>
@@ -261,21 +263,7 @@
 
     <script src="{{ url_for('static', filename='js/home.js') }}"></script>
     
-    <!-- PWA Service Worker Registration -->
     <script>
-        // Register service worker for PWA functionality
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
-                    .then((registration) => {
-                        console.log('✅ Service Worker registered successfully:', registration.scope);
-                    })
-                    .catch((error) => {
-                        console.log('❌ Service Worker registration failed:', error);
-                    });
-            });
-        }
-
         // PWA Install Prompt
         let deferredPrompt;
         const installPrompt = document.getElementById('installPrompt');

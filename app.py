@@ -194,6 +194,15 @@ def detect_user_language(text):
     # Default to English
     return 'English'
 
+
+def _language_name_from_code(lang_code):
+    code = str(lang_code or '').strip().lower()
+    if code == 'hi':
+        return 'Hindi'
+    if code == 'mr':
+        return 'Marathi'
+    return 'English'
+
 # Create upload directories
 try:
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -763,7 +772,7 @@ def get_personalized_greeting(user_name, style, language):
     
     return greetings.get(style, greetings['warm_first_time']).get(language, greetings['warm_first_time']['English'])
 
-def get_gemini_response(user_message, user_name="User", user_email=""):
+def get_gemini_response(user_message, user_name="User", user_email="", preferred_lang_code=None):
     """Ultra-responsive and personalized Gemini AI assistant"""
     try:
         model_instance = get_gemini_model()
@@ -794,8 +803,10 @@ def get_gemini_response(user_message, user_name="User", user_email=""):
             if last_exchange:
                 recent_context = f"\nPrevious context: User asked '{last_exchange['user']}' and I responded about that topic."
         
-        # Enhanced language detection with cultural awareness
-        detected_language = detect_user_language(user_message)
+        # Honor explicit user-selected language first, then fall back to detection.
+        detected_language = _language_name_from_code(preferred_lang_code)
+        if not preferred_lang_code:
+            detected_language = detect_user_language(user_message)
         cultural_context = get_cultural_context(detected_language)
         
         # Quick response patterns for common queries
@@ -2120,12 +2131,6 @@ def index():
         # Redirect to login page if not logged in
         return redirect(url_for('login'))
 
-# Fix service worker 404 error by returning empty response
-@app.route('/service-worker.js')
-def service_worker():
-    """Return the service worker file for PWA functionality"""
-    return send_from_directory('static', 'service-worker.js', mimetype='application/javascript')
-
 @app.route('/manifest.json')
 def manifest():
     """Return PWA manifest file"""
@@ -2389,25 +2394,70 @@ def profile():
     # For GET request or after failed POST, return form with user data
     return render_template('profile.html', user=user)
 
-# ENHANCED: Recommendations route with balanced top 5 results and government preference
+# ENHANCED: Recommendations route — live DB internships + AI suggestions
 @app.route('/recommendations')
 @login_required
 def recommendations():
     user = get_user_by_id(session.get('user_id'))
     if not user:
         return redirect(url_for('login'))
-    
+
     # Check if profile is completed
     if not user.get('profile_completed'):
         flash('Please complete your profile first to get personalized recommendations.', 'warning')
         return redirect(url_for('profile'))
-    
-    # Get top 5 balanced recommendations with government priority
-    top_recommendations = get_enhanced_default_recommendations(user)
-    
+
+    # ── 1. Fetch LIVE DB internships (company-posted, active) ──────────────
+    live_internships = []
+    applied_ids = set()
+    application_statuses = {}
+    try:
+        if supabase:
+            internships_response = (
+                supabase.table('internships')
+                .select('*, companies(company_name, industry, city, state, company_type)')
+                .eq('status', 'active')
+                .order('created_at', desc=True)
+                .execute()
+            )
+            live_internships = internships_response.data if internships_response.data else []
+
+            # Parse JSON array fields
+            for internship in live_internships:
+                req = internship.get('requirements')
+                if isinstance(req, str):
+                    try:
+                        internship['requirements'] = json.loads(req) if req else []
+                    except Exception:
+                        internship['requirements'] = []
+                elif req is None:
+                    internship['requirements'] = []
+
+            # Track which internships the user already applied to
+            if live_internships:
+                internship_ids = [i['id'] for i in live_internships]
+                applied_response = (
+                    supabase.table('applications')
+                    .select('internship_id, status')
+                    .eq('student_id', user['id'])
+                    .in_('internship_id', internship_ids)
+                    .execute()
+                )
+                for app_row in (applied_response.data or []):
+                    applied_ids.add(app_row['internship_id'])
+                    application_statuses[app_row['internship_id']] = app_row['status']
+    except Exception as e:
+        print(f"Error fetching live internships for recommendations: {e}")
+
+    # ── 2. Get AI / hardcoded suggestions ─────────────────────────────────
+    ai_recommendations = get_enhanced_default_recommendations(user)
+
     return render_template('recommendations.html',
-                         user=user,
-                         recommendations=top_recommendations)
+                           user=user,
+                           live_internships=live_internships,
+                           applied_ids=applied_ids,
+                           application_statuses=application_statuses,
+                           recommendations=ai_recommendations)
 
 # ENHANCED: AI recommendations with skill matching and government preference
 @app.route('/api/generate-ai-recommendations')
@@ -2469,7 +2519,8 @@ def chat():
         start_time = datetime.now()
         
         # Get ultra-responsive enhanced response
-        bot_response = get_gemini_response(user_message, user_name, user_email)
+        selected_lang_code = (data.get('language') or session.get('language') or DEFAULT_LANGUAGE)
+        bot_response = get_gemini_response(user_message, user_name, user_email, preferred_lang_code=selected_lang_code)
         
         response_time = (datetime.now() - start_time).total_seconds()
         
@@ -2940,7 +2991,7 @@ def analyze_cv():
         cv_file.save(file_path)
         
         # Analyze the CV
-        analysis_result = ats_analyzer.calculate_comprehensive_ats_score(
+        analysis_result = ats_analyzer.calculate_professional_ats_score(
             file_path, 
             job_description, 
             user_profile=user
@@ -3561,6 +3612,26 @@ def company_internships():
         # Get internships
         internships_response = supabase.table('internships').select('*').eq('company_id', company_id).order('created_at', desc=True).execute()
         internships = internships_response.data if internships_response.data else []
+
+        # Normalize JSON-like fields for safe template rendering.
+        for internship in internships:
+            requirements_value = internship.get('requirements')
+            if isinstance(requirements_value, str):
+                try:
+                    internship['requirements'] = json.loads(requirements_value) if requirements_value else []
+                except Exception:
+                    internship['requirements'] = []
+            elif requirements_value is None:
+                internship['requirements'] = []
+
+            preferred_value = internship.get('preferred_qualifications')
+            if isinstance(preferred_value, str):
+                try:
+                    internship['preferred_qualifications'] = json.loads(preferred_value) if preferred_value else []
+                except Exception:
+                    internship['preferred_qualifications'] = []
+            elif preferred_value is None:
+                internship['preferred_qualifications'] = []
         
         # Get available skills for the modal
         skills_response = supabase.table('available_skills').select('*').eq('is_active', True).order('category, display_order').execute()
@@ -3947,7 +4018,7 @@ def create_internship():
     """Create a new internship"""
     try:
         company_id = session.get('company_id')
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         
         # Validate required fields
         required_fields = ['title', 'description', 'location', 'duration']
@@ -3956,6 +4027,29 @@ def create_internship():
                 return jsonify({'success': False, 'message': f'{field.title()} is required'}), 400
         
         # Prepare internship data
+        requirements = data.get('requirements', [])
+        if not isinstance(requirements, list):
+            requirements = []
+
+        preferred_qualifications = data.get('preferred_qualifications', [])
+        if not isinstance(preferred_qualifications, list):
+            preferred_qualifications = []
+
+        stipend_amount = data.get('stipend_amount')
+        if stipend_amount in ('', None):
+            stipend_amount = None
+        else:
+            try:
+                stipend_amount = float(stipend_amount)
+            except (TypeError, ValueError):
+                return jsonify({'success': False, 'message': 'Invalid stipend amount'}), 400
+
+        openings = data.get('openings', 1)
+        try:
+            openings = int(openings)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'message': 'Invalid number of openings'}), 400
+
         internship_data = {
             'company_id': company_id,
             'title': data['title'].strip(),
@@ -3964,14 +4058,14 @@ def create_internship():
             'location': data['location'].strip(),
             'work_type': data.get('work_type', 'onsite'),
             'duration': data['duration'].strip(),
-            'stipend_amount': data.get('stipend_amount'),
+            'stipend_amount': stipend_amount,
             'stipend_frequency': data.get('stipend_frequency', 'monthly'),
-            'openings': data.get('openings', 1),
-            'application_deadline': data.get('application_deadline'),
+            'openings': openings,
+            'application_deadline': data.get('application_deadline') or None,
             'start_date': data.get('start_date'),
-            'requirements': json.dumps(data.get('requirements', [])),
+            'requirements': requirements,
             'min_qualification': data.get('min_qualification'),
-            'preferred_qualifications': json.dumps(data.get('preferred_qualifications', [])),
+            'preferred_qualifications': preferred_qualifications,
             'status': data.get('status', 'active')
         }
         
@@ -3996,7 +4090,7 @@ def update_internship():
     try:
         company_id = session.get('company_id')
         internship_id = request.view_args['internship_id']
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         
         # Verify internship belongs to this company
         internship_response = supabase.table('internships').select('*').eq('id', internship_id).eq('company_id', company_id).execute()
@@ -4015,12 +4109,30 @@ def update_internship():
         for field in updateable_fields:
             if field in data:
                 update_data[field] = data[field]
+
+        # Normalize numeric and optional fields.
+        if 'stipend_amount' in update_data and update_data['stipend_amount'] in ('', None):
+            update_data['stipend_amount'] = None
+        elif 'stipend_amount' in update_data:
+            try:
+                update_data['stipend_amount'] = float(update_data['stipend_amount'])
+            except (TypeError, ValueError):
+                return jsonify({'success': False, 'message': 'Invalid stipend amount'}), 400
+
+        if 'openings' in update_data:
+            try:
+                update_data['openings'] = int(update_data['openings'])
+            except (TypeError, ValueError):
+                return jsonify({'success': False, 'message': 'Invalid number of openings'}), 400
+
+        if 'application_deadline' in update_data and update_data['application_deadline'] == '':
+            update_data['application_deadline'] = None
         
         # Handle JSON fields
         if 'requirements' in data:
-            update_data['requirements'] = json.dumps(data['requirements'])
+            update_data['requirements'] = data['requirements'] if isinstance(data['requirements'], list) else []
         if 'preferred_qualifications' in data:
-            update_data['preferred_qualifications'] = json.dumps(data['preferred_qualifications'])
+            update_data['preferred_qualifications'] = data['preferred_qualifications'] if isinstance(data['preferred_qualifications'], list) else []
         
         if not update_data:
             return jsonify({'success': False, 'message': 'No data to update'}), 400
@@ -4055,8 +4167,8 @@ def delete_internship():
         
         if applications_response.data:
             # Don't delete if there are applications, just mark as cancelled
-            response = supabase.table('internships').update({'status': 'cancelled'}).eq('id', internship_id).execute()
-            message = 'Internship cancelled (had applications)'
+            response = supabase.table('internships').update({'status': 'closed'}).eq('id', internship_id).execute()
+            message = 'Internship closed (had applications)'
         else:
             # Safe to delete if no applications
             response = supabase.table('internships').delete().eq('id', internship_id).execute()
@@ -4066,6 +4178,32 @@ def delete_internship():
         
     except Exception as e:
         print(f"Error deleting internship: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+@app.route('/api/company/internships/<int:internship_id>/status', methods=['PATCH'])
+@company_login_required
+def update_internship_status():
+    """Update internship status."""
+    try:
+        company_id = session.get('company_id')
+        data = request.get_json(silent=True) or {}
+        status = data.get('status')
+
+        valid_statuses = {'draft', 'active', 'paused', 'closed', 'expired'}
+        if status not in valid_statuses:
+            return jsonify({'success': False, 'message': 'Invalid status'}), 400
+
+        internship_response = supabase.table('internships').select('id').eq('id', internship_id).eq('company_id', company_id).execute()
+        if not internship_response.data:
+            return jsonify({'success': False, 'message': 'Internship not found'}), 404
+
+        response = supabase.table('internships').update({'status': status}).eq('id', internship_id).execute()
+        if response.data:
+            return jsonify({'success': True, 'message': 'Internship status updated successfully'})
+
+        return jsonify({'success': False, 'message': 'Failed to update status'}), 400
+    except Exception as e:
+        print(f"Error updating internship status: {e}")
         return jsonify({'success': False, 'message': 'Server error'}), 500
 
 @app.route('/api/company/skills')
@@ -4153,6 +4291,2181 @@ def mark_notification_read():
         
     except Exception as e:
         print(f"Error marking notification as read: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+
+# ==========================================
+# APPLICANT / STUDENT — INTERNSHIP BROWSE & APPLY
+# ==========================================
+
+@app.route('/internships')
+@login_required
+def internships_list():
+    """Browse all active internships posted by companies"""
+    try:
+        user = get_user_by_id(session.get('user_id'))
+        if not user:
+            return redirect(url_for('login'))
+
+        # Fetch all active internships with company info
+        internships_response = (
+            supabase.table('internships')
+            .select('*, companies(company_name, industry, city, state, company_type)')
+            .eq('status', 'active')
+            .order('created_at', desc=True)
+            .execute()
+        )
+        internships = internships_response.data if internships_response.data else []
+
+        # Parse JSON-like array fields and add computed display values
+        for internship in internships:
+            req = internship.get('requirements')
+            if isinstance(req, str):
+                try:
+                    internship['requirements'] = json.loads(req) if req else []
+                except Exception:
+                    internship['requirements'] = []
+            elif req is None:
+                internship['requirements'] = []
+
+            pq = internship.get('preferred_qualifications')
+            if isinstance(pq, str):
+                try:
+                    internship['preferred_qualifications'] = json.loads(pq) if pq else []
+                except Exception:
+                    internship['preferred_qualifications'] = []
+            elif pq is None:
+                internship['preferred_qualifications'] = []
+
+        # Collect internship IDs the user has already applied to
+        applied_ids = set()
+        application_statuses = {}
+        if internships:
+            internship_ids = [i['id'] for i in internships]
+            applied_response = (
+                supabase.table('applications')
+                .select('internship_id, status')
+                .eq('student_id', user['id'])
+                .in_('internship_id', internship_ids)
+                .execute()
+            )
+            for app_row in (applied_response.data or []):
+                applied_ids.add(app_row['internship_id'])
+                application_statuses[app_row['internship_id']] = app_row['status']
+
+        return render_template('internships.html',
+                               user=user,
+                               internships=internships,
+                               applied_ids=applied_ids,
+                               application_statuses=application_statuses)
+
+    except Exception as e:
+        print(f"Error loading internships: {e}")
+        import traceback; traceback.print_exc()
+        flash('Error loading internships. Please try again.', 'error')
+        return redirect(url_for('home'))
+
+
+@app.route('/api/internships/<int:internship_id>/apply', methods=['POST'])
+@login_required
+def apply_internship(internship_id):
+    """Submit an application for an internship"""
+    try:
+        user = get_user_by_id(session.get('user_id'))
+        if not user:
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+
+        if not user.get('profile_completed'):
+            return jsonify({'success': False, 'message': 'Please complete your profile before applying'}), 400
+
+        # Verify internship exists and is active
+        internship_response = (
+            supabase.table('internships')
+            .select('id, title, company_id, status')
+            .eq('id', internship_id)
+            .eq('status', 'active')
+            .execute()
+        )
+        if not internship_response.data:
+            return jsonify({'success': False, 'message': 'Internship not found or no longer active'}), 404
+
+        internship = internship_response.data[0]
+
+        # Check for duplicate application
+        existing_response = (
+            supabase.table('applications')
+            .select('id, status')
+            .eq('student_id', user['id'])
+            .eq('internship_id', internship_id)
+            .execute()
+        )
+        if existing_response.data:
+            existing_status = existing_response.data[0].get('status', 'pending')
+            return jsonify({
+                'success': False,
+                'already_applied': True,
+                'message': f'You have already applied. Current status: {existing_status.replace("_", " ").title()}'
+            }), 200
+
+        # Insert new application
+        application_data = {
+            'student_id': user['id'],
+            'internship_id': internship_id,
+            'company_id': internship['company_id'],
+            'status': 'pending',
+            'applied_date': datetime.now(timezone.utc).isoformat()
+        }
+
+        insert_response = supabase.table('applications').insert(application_data).execute()
+
+        if insert_response.data:
+            # Create a notification for the company
+            try:
+                notification_data = {
+                    'recipient_id': internship['company_id'],
+                    'recipient_type': 'company',
+                    'title': 'New Application Received',
+                    'message': f'{user.get("full_name", "An applicant")} applied for {internship["title"]}',
+                    'notification_type': 'new_application',
+                    'related_application_id': insert_response.data[0]['id']
+                }
+                supabase.table('notifications').insert(notification_data).execute()
+            except Exception as notif_err:
+                print(f"Notification error (non-blocking): {notif_err}")
+
+            return jsonify({'success': True, 'message': 'Application submitted successfully!'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to submit application. Please try again.'}), 500
+
+    except Exception as e:
+        print(f"Error applying for internship: {e}")
+        return jsonify({'success': False, 'message': 'Server error. Please try again.'}), 500
+
+
+@app.route('/my-applications')
+@login_required
+def my_applications():
+    """View all applications submitted by the logged-in student"""
+    try:
+        user = get_user_by_id(session.get('user_id'))
+        if not user:
+            return redirect(url_for('login'))
+
+        # Fetch applications with internship and company details
+        apps_response = (
+            supabase.table('applications')
+            .select('*, internships(title, location, duration, stipend_amount, stipend_frequency, work_type, company_id, companies(company_name, industry, city))')
+            .eq('student_id', user['id'])
+            .order('applied_date', desc=True)
+            .execute()
+        )
+        applications = apps_response.data if apps_response.data else []
+
+        return render_template('my_applications.html',
+                               user=user,
+                               applications=applications)
+
+    except Exception as e:
+        print(f"Error loading applications: {e}")
+        flash('Error loading your applications. Please try again.', 'error')
+        return redirect(url_for('home'))
+
+
+# ==========================================
+# TEAM COLLABORATION & PERFORMANCE EVALUATION
+# ==========================================
+
+def _parse_iso_datetime(value):
+    """Parse datetime string from DB safely."""
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        normalized = str(value).replace('Z', '+00:00')
+        return datetime.fromisoformat(normalized)
+    except Exception:
+        return None
+
+
+def _safe_float(value, default=0.0):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_int(value, default=0):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+TEAM_STATUS_ACTIVE = 'active'
+TEAM_STATUS_PAUSED = 'paused'
+TEAM_STATUS_CLOSED = 'closed'
+ALLOWED_TEAM_STATUSES = {TEAM_STATUS_ACTIVE, TEAM_STATUS_PAUSED, TEAM_STATUS_CLOSED}
+
+MEMBER_PROGRESS_PENDING = 'pending'
+MEMBER_PROGRESS_IN_PROGRESS = 'in_progress'
+MEMBER_PROGRESS_COMPLETED = 'completed'
+ALLOWED_MEMBER_PROGRESS = {
+    MEMBER_PROGRESS_PENDING,
+    MEMBER_PROGRESS_IN_PROGRESS,
+    MEMBER_PROGRESS_COMPLETED
+}
+
+
+def _normalize_team_status(value):
+    status = str(value or '').strip().lower()
+    return status if status in ALLOWED_TEAM_STATUSES else TEAM_STATUS_ACTIVE
+
+
+def _team_is_joinable(team_obj):
+    return _normalize_team_status((team_obj or {}).get('status')) == TEAM_STATUS_ACTIVE
+
+
+def _team_visible_for_non_member(team_obj):
+    return _normalize_team_status((team_obj or {}).get('status')) == TEAM_STATUS_ACTIVE
+
+
+def _normalize_member_progress(value):
+    status = str(value or '').strip().lower()
+    return status if status in ALLOWED_MEMBER_PROGRESS else MEMBER_PROGRESS_PENDING
+
+
+def _is_team_deadline_over(team_id):
+    """Treat the team deadline as the latest task deadline for that team."""
+    try:
+        latest_deadline_rows = (
+            supabase.table('tasks')
+            .select('deadline')
+            .eq('team_id', team_id)
+            .order('deadline', desc=True)
+            .limit(1)
+            .execute()
+            .data or []
+        )
+        latest_deadline = _parse_iso_datetime((latest_deadline_rows[0] or {}).get('deadline')) if latest_deadline_rows else None
+        if not latest_deadline:
+            return False
+        return latest_deadline.astimezone(timezone.utc) < datetime.now(timezone.utc)
+    except Exception as e:
+        print(f"Error checking team deadline window for team {team_id}: {e}")
+        return False
+
+
+def _is_missing_relation_error(error_obj):
+    """Detect missing table/relation errors from Supabase/PostgREST messages."""
+    try:
+        msg = str(error_obj).lower()
+        return ('relation' in msg and 'does not exist' in msg) or ('could not find the table' in msg)
+    except Exception:
+        return False
+
+
+def _get_user_team_ids(user_id):
+    """Return all team IDs for a user."""
+    try:
+        response = supabase.table('team_members').select('team_id').eq('user_id', user_id).execute()
+        return [row['team_id'] for row in (response.data or []) if row.get('team_id')]
+    except Exception as e:
+        print(f"Error getting team IDs for user {user_id}: {e}")
+        return []
+
+
+def _is_user_in_team(user_id, team_id):
+    """Check if user is a member of the given team."""
+    try:
+        response = supabase.table('team_members').select('id').eq('team_id', team_id).eq('user_id', user_id).limit(1).execute()
+        return bool(response.data)
+    except Exception:
+        return False
+
+
+def _is_company_team_owner(company_id, team_id):
+    """Check if company owns the team."""
+    try:
+        response = supabase.table('teams').select('id').eq('id', team_id).eq('company_id', company_id).limit(1).execute()
+        return bool(response.data)
+    except Exception:
+        return False
+
+
+def log_activity(user_id, action_type, team_id=None, task_id=None, duration_minutes=None, details=None):
+    """Store activity logs for performance analytics."""
+    try:
+        payload = {
+            'user_id': user_id,
+            'team_id': team_id,
+            'task_id': task_id,
+            'action_type': action_type,
+            'duration_minutes': duration_minutes,
+            'details': details or {},
+            'created_at': datetime.now(timezone.utc).isoformat()
+        }
+        payload = {k: v for k, v in payload.items() if v is not None}
+        supabase.table('activity_logs').insert(payload).execute()
+    except Exception as e:
+        print(f"Activity log error (non-blocking): {e}")
+
+
+def get_upcoming_deadline_alerts(team_ids=None, assigned_user_id=None, within_hours=48):
+    """Get tasks with near/overdue deadlines for lightweight notifications."""
+    try:
+        query = supabase.table('tasks').select('id, team_id, assigned_to_user_id, title, deadline, status').in_('status', ['pending', 'in_progress', 'blocked'])
+        if team_ids:
+            query = query.in_('team_id', team_ids)
+        if assigned_user_id:
+            query = query.eq('assigned_to_user_id', assigned_user_id)
+
+        rows = query.order('deadline').limit(200).execute().data or []
+        now_utc = datetime.now(timezone.utc)
+        max_window = now_utc + timedelta(hours=within_hours)
+
+        alerts = []
+        for row in rows:
+            deadline_dt = _parse_iso_datetime(row.get('deadline'))
+            if not deadline_dt:
+                continue
+            deadline_utc = deadline_dt.astimezone(timezone.utc)
+            if deadline_utc <= max_window:
+                delta_minutes = int((deadline_utc - now_utc).total_seconds() // 60)
+                alerts.append({
+                    'task_id': row.get('id'),
+                    'team_id': row.get('team_id'),
+                    'title': row.get('title') or 'Task',
+                    'status': row.get('status') or 'pending',
+                    'deadline': row.get('deadline'),
+                    'minutes_remaining': delta_minutes,
+                    'is_overdue': delta_minutes < 0
+                })
+
+        alerts.sort(key=lambda x: x['minutes_remaining'])
+        return alerts[:20]
+    except Exception as e:
+        print(f"Error computing deadline alerts: {e}")
+        return []
+
+
+def get_activity_feed(team_ids=None, limit=30):
+    """Hydrate activity logs with user names for dashboard feeds."""
+    try:
+        query = supabase.table('activity_logs').select('*')
+        if team_ids:
+            query = query.in_('team_id', team_ids)
+        logs = query.order('created_at', desc=True).limit(limit).execute().data or []
+        if not logs:
+            return []
+
+        user_ids = sorted(list({row.get('user_id') for row in logs if row.get('user_id')}))
+        users_map = {}
+        if user_ids:
+            users = supabase.table('users').select('id, full_name').in_('id', user_ids).execute().data or []
+            users_map = {u['id']: (u.get('full_name') or 'Unknown') for u in users}
+
+        for row in logs:
+            row['user_name'] = users_map.get(row.get('user_id'), 'Unknown')
+        return logs
+    except Exception as e:
+        print(f"Error loading activity feed: {e}")
+        return []
+
+
+def compute_user_performance_metrics(user_id, team_id=None):
+    """Compute task completion, timeliness and activity metrics for a user."""
+    tasks_query = supabase.table('tasks').select('id, status, deadline, completed_at, created_at').eq('assigned_to_user_id', user_id)
+    if team_id:
+        tasks_query = tasks_query.eq('team_id', team_id)
+
+    tasks_data = tasks_query.execute().data or []
+    total_tasks = len(tasks_data)
+    completed_tasks_rows = [t for t in tasks_data if t.get('status') == 'completed']
+    completed_tasks = len(completed_tasks_rows)
+
+    task_completion = (completed_tasks / total_tasks * 100) if total_tasks else 0.0
+
+    on_time_count = 0
+    for task in completed_tasks_rows:
+        deadline_dt = _parse_iso_datetime(task.get('deadline'))
+        completed_dt = _parse_iso_datetime(task.get('completed_at'))
+        if completed_dt and deadline_dt and completed_dt <= deadline_dt:
+            on_time_count += 1
+
+    timeliness = (on_time_count / completed_tasks * 100) if completed_tasks else 0.0
+
+    team_ids = [team_id] if team_id else _get_user_team_ids(user_id)
+    messages_sent = 0
+    if team_ids:
+        try:
+            messages_response = supabase.table('team_messages').select('id').eq('sender_id', user_id).in_('team_id', team_ids).execute()
+            messages_sent = len(messages_response.data or [])
+        except Exception:
+            messages_sent = 0
+
+    activity_signal = min(100.0, (completed_tasks * 8.0) + (messages_sent * 2.0))
+    score = calculate_performance_score(task_completion, timeliness, activity_signal)
+
+    return {
+        'total_tasks': total_tasks,
+        'completed_tasks': completed_tasks,
+        'messages_sent': messages_sent,
+        'task_completion': round(task_completion, 2),
+        'timeliness': round(timeliness, 2),
+        'activity': round(activity_signal, 2),
+        'performance_score': round(score, 2)
+    }
+
+
+def calculate_performance_score(task_completion, timeliness, activity):
+    """Weighted performance score formula."""
+    return (_safe_float(task_completion) * 0.5) + (_safe_float(timeliness) * 0.3) + (_safe_float(activity) * 0.2)
+
+
+def _clamp_score(value, minimum=0.0, maximum=100.0):
+    value = _safe_float(value, 0.0)
+    return max(minimum, min(maximum, value))
+
+
+def _estimate_ats_score_from_profile(user):
+    """Estimate ATS readiness from available user profile signals."""
+    if not user:
+        return 0.0
+
+    score = 0.0
+    profile_keys = [
+        'full_name', 'email', 'phone', 'district', 'state', 'qualification',
+        'about', 'career_objective', 'experience'
+    ]
+    completed = 0
+    for key in profile_keys:
+        value = user.get(key)
+        if value not in (None, '', [], {}):
+            completed += 1
+    score += (completed / len(profile_keys)) * 45.0
+
+    skills = user.get('skills') or []
+    if isinstance(skills, str):
+        skills = [s.strip() for s in skills.split(',') if s.strip()]
+    score += min(35.0, len(skills) * 5.0)
+
+    if user.get('profile_completed'):
+        score += 12.0
+
+    qualification = str(user.get('qualification') or '').lower()
+    if qualification in {'ug', 'pg', 'phd', 'diploma'}:
+        score += 8.0
+
+    return round(_clamp_score(score), 2)
+
+
+def _estimate_github_score(user_id, user=None):
+    """Estimate GitHub score from profile signals and logged github activity."""
+    if not user:
+        user = get_user_by_id(user_id)
+    if not user:
+        return 0.0
+
+    score = 0.0
+    github_fields = ['github', 'github_url', 'github_username']
+    if any(user.get(f) for f in github_fields):
+        score += 35.0
+
+    projects = user.get('projects')
+    if isinstance(projects, list):
+        score += min(20.0, len(projects) * 5.0)
+
+    try:
+        logs = (
+            supabase.table('activity_logs')
+            .select('action_type, details, created_at')
+            .eq('user_id', user_id)
+            .in_('action_type', ['github_commit', 'github_activity'])
+            .order('created_at', desc=True)
+            .limit(100)
+            .execute()
+            .data or []
+        )
+
+        commit_count = 0
+        for row in logs:
+            details = row.get('details') or {}
+            if isinstance(details, dict):
+                commit_count += _safe_int(details.get('commits', 1), 1)
+            else:
+                commit_count += 1
+        score += min(45.0, commit_count * 1.5)
+    except Exception as e:
+        print(f"GitHub score activity lookup failed for user {user_id}: {e}")
+
+    return round(_clamp_score(score), 2)
+
+
+def _calculate_total_rank_score(ats_score, github_score, performance_score):
+    """Weighted score formula for ranking applicants."""
+    total = (_safe_float(ats_score) * 0.4) + (_safe_float(github_score) * 0.3) + (_safe_float(performance_score) * 0.3)
+    return round(_clamp_score(total), 2)
+
+
+def _get_team_capacity(team_obj):
+    """Soft capacity limit used to split active and waitlist groups."""
+    cap = _safe_int((team_obj or {}).get('max_capacity'), 10)
+    return max(1, min(cap, 1000))
+
+
+def _normalize_team_role(value):
+    role = str(value or '').strip()
+    return role if role in {'Frontend', 'Backend', 'AI/ML'} else 'Frontend'
+
+
+def sync_team_membership_from_ranking(team_id, ranked_rows):
+    """Ensure team_members mirrors current active/waitlisted ranking state."""
+    try:
+        active_rows = [r for r in ranked_rows if r.get('status') == 'active']
+        waitlisted_rows = [r for r in ranked_rows if r.get('status') == 'waitlisted']
+
+        # Promote active applicants into team_members.
+        for row in active_rows:
+            user_id = row.get('user_id')
+            if not user_id:
+                continue
+
+            role = _normalize_team_role(row.get('desired_role'))
+            existing = (
+                supabase.table('team_members')
+                .select('id, role')
+                .eq('team_id', team_id)
+                .eq('user_id', user_id)
+                .limit(1)
+                .execute()
+                .data or []
+            )
+
+            if existing:
+                if existing[0].get('role') != role:
+                    supabase.table('team_members').update({'role': role}).eq('id', existing[0]['id']).execute()
+            else:
+                payload = {
+                    'team_id': team_id,
+                    'user_id': user_id,
+                    'role': role,
+                    'progress_status': MEMBER_PROGRESS_PENDING,
+                    'joined_at': datetime.now(timezone.utc).isoformat()
+                }
+                try:
+                    supabase.table('team_members').insert(payload).execute()
+                except Exception as insert_error:
+                    if 'progress_status' in str(insert_error).lower() and 'column' in str(insert_error).lower():
+                        payload.pop('progress_status', None)
+                        supabase.table('team_members').insert(payload).execute()
+                    else:
+                        raise
+
+        # Demote waitlisted applicants out of active team_membership.
+        for row in waitlisted_rows:
+            user_id = row.get('user_id')
+            if not user_id:
+                continue
+            supabase.table('team_members').delete().eq('team_id', team_id).eq('user_id', user_id).execute()
+    except Exception as e:
+        print(f"Error syncing team membership for team {team_id}: {e}")
+
+
+def recalculate_team_applicant_ranking(team_id):
+    """Re-rank all applicants for a team and update active/waitlist statuses."""
+    try:
+        team_rows = supabase.table('teams').select('*').eq('id', team_id).limit(1).execute().data or []
+        if not team_rows:
+            return []
+
+        max_capacity = _get_team_capacity(team_rows[0])
+        try:
+            applications = (
+                supabase.table('team_applications')
+                .select('id, user_id, total_score, applied_at, manual_rank')
+                .eq('team_id', team_id)
+                .execute()
+                .data or []
+            )
+        except Exception as read_error:
+            # Backward compatibility when manual_rank column is not present yet.
+            if 'manual_rank' in str(read_error).lower() and 'column' in str(read_error).lower():
+                applications = (
+                    supabase.table('team_applications')
+                    .select('id, user_id, total_score, applied_at')
+                    .eq('team_id', team_id)
+                    .execute()
+                    .data or []
+                )
+                for row in applications:
+                    row['manual_rank'] = None
+            else:
+                raise
+
+        manually_ranked = [row for row in applications if row.get('manual_rank') is not None]
+        auto_ranked = [row for row in applications if row.get('manual_rank') is None]
+
+        manually_ranked.sort(
+            key=lambda row: (
+                _safe_int(row.get('manual_rank'), 10**9),
+                -_safe_float(row.get('total_score')),
+                str(row.get('applied_at') or '')
+            )
+        )
+        auto_ranked.sort(
+            key=lambda row: (
+                -_safe_float(row.get('total_score')),
+                str(row.get('applied_at') or '')
+            )
+        )
+
+        ordered_rows = manually_ranked + auto_ranked
+
+        for idx, row in enumerate(ordered_rows, start=1):
+            status = 'active' if idx <= max_capacity else 'waitlisted'
+            supabase.table('team_applications').update({
+                'rank': idx,
+                'status': status
+            }).eq('id', row['id']).execute()
+
+        ranked = (
+            supabase.table('team_applications')
+            .select('*')
+            .eq('team_id', team_id)
+            .order('rank')
+            .execute()
+            .data or []
+        )
+
+        sync_team_membership_from_ranking(team_id, ranked)
+        return ranked
+    except Exception as e:
+        print(f"Error recalculating ranking for team {team_id}: {e}")
+        return []
+
+
+def refresh_team_application_scores(team_id, user_id=None):
+    """Refresh performance/total score and re-rank (called after activity updates)."""
+    try:
+        query = supabase.table('team_applications').select('*').eq('team_id', team_id)
+        if user_id:
+            query = query.eq('user_id', user_id)
+        apps = query.execute().data or []
+
+        for app_row in apps:
+            uid = app_row.get('user_id')
+            if not uid:
+                continue
+            user = get_user_by_id(uid)
+            ats_score = _estimate_ats_score_from_profile(user)
+            github_score = _estimate_github_score(uid, user=user)
+            perf_metrics = compute_user_performance_metrics(uid, team_id=team_id)
+            performance_score = perf_metrics.get('performance_score', 0)
+            total_score = _calculate_total_rank_score(ats_score, github_score, performance_score)
+
+            supabase.table('team_applications').update({
+                'ats_score': ats_score,
+                'github_score': github_score,
+                'performance_score': round(_clamp_score(performance_score), 2),
+                'total_score': total_score
+            }).eq('id', app_row['id']).execute()
+
+        recalculate_team_applicant_ranking(team_id)
+    except Exception as e:
+        print(f"Error refreshing team application scores: {e}")
+
+
+def get_team_ranking_snapshot(team_id):
+    """Return ranked applications with user info and separated active/waitlist groups."""
+    rows = (
+        supabase.table('team_applications')
+        .select('*')
+        .eq('team_id', team_id)
+        .order('rank')
+        .execute()
+        .data or []
+    )
+    if not rows:
+        return {'all': [], 'active': [], 'waitlist': []}
+
+    user_ids = [r.get('user_id') for r in rows if r.get('user_id')]
+    users_map = {}
+    if user_ids:
+        users = supabase.table('users').select('id, full_name, email').in_('id', user_ids).execute().data or []
+        users_map = {u['id']: u for u in users}
+
+    for row in rows:
+        user_row = users_map.get(row.get('user_id')) or {}
+        user_email = (user_row.get('email') or '').strip()
+        user_name = (user_row.get('full_name') or '').strip() or user_email or 'Unknown'
+        row['user'] = {
+            'id': user_row.get('id') or row.get('user_id'),
+            'full_name': user_name,
+            'email': user_email
+        }
+
+    active = [r for r in rows if r.get('status') == 'active']
+    waitlist = [r for r in rows if r.get('status') == 'waitlisted']
+    return {'all': rows, 'active': active, 'waitlist': waitlist}
+
+
+def _enrich_admin_ranking_snapshot(team_id, snapshot):
+    """Add completed-task signals and GitHub profile fields for admin ranking review."""
+    if not snapshot:
+        return {'all': [], 'active': [], 'waitlist': [], 'completed_active': []}
+
+    user_ids = [row.get('user_id') for row in (snapshot.get('all') or []) if row.get('user_id')]
+    if not user_ids:
+        snapshot['completed_active'] = []
+        return snapshot
+
+    completed_rows = (
+        supabase.table('tasks')
+        .select('assigned_to_user_id')
+        .eq('team_id', team_id)
+        .eq('status', 'completed')
+        .in_('assigned_to_user_id', user_ids)
+        .execute()
+        .data or []
+    )
+
+    completed_map = {}
+    for row in completed_rows:
+        uid = row.get('assigned_to_user_id')
+        if not uid:
+            continue
+        completed_map[uid] = completed_map.get(uid, 0) + 1
+
+    github_map = {}
+    try:
+        github_rows = (
+            supabase.table('users')
+            .select('id, github, github_url, github_username')
+            .in_('id', user_ids)
+            .execute()
+            .data or []
+        )
+        for user_row in github_rows:
+            github_map[user_row.get('id')] = {
+                'github': user_row.get('github'),
+                'github_url': user_row.get('github_url'),
+                'github_username': user_row.get('github_username')
+            }
+    except Exception as e:
+        print(f"GitHub fields lookup failed for ranking enrichment: {e}")
+
+    for bucket_name in ['all', 'active', 'waitlist']:
+        for row in (snapshot.get(bucket_name) or []):
+            uid = row.get('user_id')
+            completed_tasks = completed_map.get(uid, 0)
+            row['completed_tasks'] = completed_tasks
+            row['can_manual_rank'] = completed_tasks > 0
+
+            github_info = github_map.get(uid, {})
+            user_obj = row.get('user') or {}
+            user_obj['github'] = github_info.get('github')
+            user_obj['github_url'] = github_info.get('github_url')
+            user_obj['github_username'] = github_info.get('github_username')
+            row['user'] = user_obj
+
+    completed_active = [
+        row for row in (snapshot.get('all') or [])
+        if _safe_int(row.get('completed_tasks'), 0) > 0
+    ]
+    completed_active.sort(
+        key=lambda row: (
+            -_safe_int(row.get('completed_tasks'), 0),
+            _safe_int(row.get('rank'), 10**9)
+        )
+    )
+    snapshot['completed_active'] = completed_active
+    return snapshot
+
+
+@app.route('/company/collaboration')
+@company_login_required
+def company_collaboration_dashboard():
+    """Admin dashboard for teams, tasks and performance insights."""
+    try:
+        company_id = session.get('company_id')
+        company = get_company_by_id(company_id)
+        if not company:
+            flash('Company not found. Please login again.', 'error')
+            return redirect(url_for('login'))
+
+        teams_response = supabase.table('teams').select('*').eq('company_id', company_id).order('created_at', desc=True).execute()
+        teams = teams_response.data or []
+        team_ids = [t['id'] for t in teams if t.get('id')]
+        team_lookup = {t['id']: t for t in teams if t.get('id')}
+
+        members = []
+        if team_ids:
+            members_response = supabase.table('team_members').select('*').in_('team_id', team_ids).execute()
+            members = members_response.data or []
+
+        user_ids = sorted(list({m.get('user_id') for m in members if m.get('user_id')}))
+        users_map = {}
+        if user_ids:
+            users_response = supabase.table('users').select('id, full_name, email').in_('id', user_ids).execute()
+            users_map = {u['id']: u for u in (users_response.data or [])}
+
+        github_map = {}
+        if user_ids:
+            try:
+                github_rows = (
+                    supabase.table('users')
+                    .select('id, github, github_url, github_username')
+                    .in_('id', user_ids)
+                    .execute()
+                    .data or []
+                )
+                for user_row in github_rows:
+                    github_map[user_row.get('id')] = {
+                        'github': user_row.get('github'),
+                        'github_url': user_row.get('github_url'),
+                        'github_username': user_row.get('github_username')
+                    }
+            except Exception as github_error:
+                print(f"GitHub lookup skipped in collaboration dashboard: {github_error}")
+
+        for member in members:
+            member['user'] = users_map.get(member.get('user_id'))
+
+        team_member_count = {}
+        for member in members:
+            team_member_count[member['team_id']] = team_member_count.get(member['team_id'], 0) + 1
+
+        team_scores = {}
+        performer_rows = []
+        for uid in user_ids:
+            metrics = compute_user_performance_metrics(uid)
+            user_obj = users_map.get(uid, {'full_name': 'Unknown', 'email': ''})
+            performer_rows.append({
+                'user_id': uid,
+                'name': user_obj.get('full_name', 'Unknown'),
+                'email': user_obj.get('email', ''),
+                'score': metrics['performance_score'],
+                'metrics': metrics
+            })
+
+        for team in teams:
+            team_user_ids = [m['user_id'] for m in members if m.get('team_id') == team['id'] and m.get('user_id')]
+            if not team_user_ids:
+                team_scores[team['id']] = 0.0
+                continue
+            scores = [row['score'] for row in performer_rows if row['user_id'] in team_user_ids]
+            team_scores[team['id']] = round(sum(scores) / len(scores), 2) if scores else 0.0
+
+        top_performers = sorted(performer_rows, key=lambda x: x['score'], reverse=True)[:5]
+        low_performers = sorted(performer_rows, key=lambda x: x['score'])[:5]
+
+        tasks = []
+        task_summary = {
+            'total': 0,
+            'pending': 0,
+            'in_progress': 0,
+            'completed': 0,
+            'blocked': 0,
+            'overdue': 0
+        }
+        if team_ids:
+            tasks = (
+                supabase.table('tasks')
+                .select('id, team_id, assigned_to_user_id, title, description, deadline, status, created_at, updated_at, completed_at')
+                .in_('team_id', team_ids)
+                .order('created_at', desc=True)
+                .limit(300)
+                .execute()
+                .data or []
+            )
+
+            assignee_ids = sorted(list({t.get('assigned_to_user_id') for t in tasks if t.get('assigned_to_user_id')}))
+            app_lookup = {}
+            if assignee_ids:
+                try:
+                    app_rows = (
+                        supabase.table('team_applications')
+                        .select('id, team_id, user_id, manual_rank, repository_link')
+                        .in_('team_id', team_ids)
+                        .in_('user_id', assignee_ids)
+                        .execute()
+                        .data or []
+                    )
+                except Exception as app_error:
+                    if 'repository_link' in str(app_error).lower() and 'column' in str(app_error).lower():
+                        app_rows = (
+                            supabase.table('team_applications')
+                            .select('id, team_id, user_id, manual_rank')
+                            .in_('team_id', team_ids)
+                            .in_('user_id', assignee_ids)
+                            .execute()
+                            .data or []
+                        )
+                    else:
+                        raise
+                for app_row in app_rows:
+                    key = (app_row.get('team_id'), app_row.get('user_id'))
+                    if key not in app_lookup:
+                        app_lookup[key] = app_row
+
+            now_utc = datetime.now(timezone.utc)
+            team_deadline_over_map = {}
+            for tid in team_ids:
+                team_deadline_over_map[tid] = _is_team_deadline_over(tid)
+
+            for t in tasks:
+                status = t.get('status') or 'pending'
+                task_summary['total'] += 1
+                if status in task_summary:
+                    task_summary[status] += 1
+
+                deadline_dt = _parse_iso_datetime(t.get('deadline'))
+                is_overdue = False
+                if deadline_dt and status != 'completed':
+                    is_overdue = deadline_dt.astimezone(timezone.utc) < now_utc
+                t['is_overdue'] = is_overdue
+                if is_overdue:
+                    task_summary['overdue'] += 1
+
+                assignee = users_map.get(t.get('assigned_to_user_id'), {})
+                t['assignee_name'] = (assignee.get('full_name') or assignee.get('email') or 'Unassigned')
+                app_row = app_lookup.get((t.get('team_id'), t.get('assigned_to_user_id')))
+                t['rank_application_id'] = app_row.get('id') if app_row else None
+                t['manual_rank'] = app_row.get('manual_rank') if app_row else None
+                t['repository_link'] = app_row.get('repository_link') if app_row else None
+                github_info = github_map.get(t.get('assigned_to_user_id'), {})
+                t['assignee_github_url'] = github_info.get('github_url') or github_info.get('github')
+                t['assignee_github_username'] = github_info.get('github_username')
+                t['team_name'] = (team_lookup.get(t.get('team_id')) or {}).get('name') or f"Team {t.get('team_id')}"
+                t['team_deadline_over'] = bool(team_deadline_over_map.get(t.get('team_id')))
+
+                if not t.get('assigned_to_user_id'):
+                    t['can_manual_rank'] = False
+                    t['rank_lock_reason'] = 'Assign task first'
+                elif status != 'completed':
+                    t['can_manual_rank'] = False
+                    t['rank_lock_reason'] = 'Enable after completion'
+                elif not t['team_deadline_over']:
+                    t['can_manual_rank'] = False
+                    t['rank_lock_reason'] = 'Enable after team deadline'
+                else:
+                    t['can_manual_rank'] = True
+                    t['rank_lock_reason'] = ''
+
+        deadline_alerts = get_upcoming_deadline_alerts(team_ids=team_ids, within_hours=48)
+        interns_response = supabase.table('users').select('id, full_name, email, profile_completed').eq('profile_completed', True).order('full_name').execute()
+        available_interns = interns_response.data or []
+
+        for team in teams:
+            team['member_count'] = team_member_count.get(team['id'], 0)
+            team['performance_score'] = team_scores.get(team['id'], 0.0)
+            team['max_capacity'] = _get_team_capacity(team)
+            team['status'] = _normalize_team_status(team.get('status'))
+
+        selected_team_id = request.args.get('ranking_team_id', type=int)
+        if not selected_team_id and teams:
+            selected_team_id = teams[0]['id']
+
+        ranking_snapshot = {'all': [], 'active': [], 'waitlist': []}
+        if selected_team_id:
+            ranking_snapshot = _enrich_admin_ranking_snapshot(
+                selected_team_id,
+                get_team_ranking_snapshot(selected_team_id)
+            )
+
+        return render_template(
+            'company/team_collaboration.html',
+            company=company,
+            teams=teams,
+            members=members,
+            available_interns=available_interns,
+            top_performers=top_performers,
+            low_performers=low_performers,
+            tasks=tasks,
+            task_summary=task_summary,
+            deadline_alerts=deadline_alerts,
+            ranking_snapshot=ranking_snapshot,
+            ranking_team_id=selected_team_id
+        )
+    except Exception as e:
+        print(f"Error in collaboration dashboard: {e}")
+        if _is_missing_relation_error(e):
+            company = get_company_by_id(session.get('company_id'))
+            return render_template(
+                'company/team_collaboration.html',
+                company=company,
+                teams=[],
+                members=[],
+                available_interns=[],
+                top_performers=[],
+                low_performers=[],
+                tasks=[],
+                task_summary={'total': 0, 'pending': 0, 'in_progress': 0, 'completed': 0, 'blocked': 0, 'overdue': 0},
+                deadline_alerts=[],
+                db_setup_required=True,
+                ranking_snapshot={'all': [], 'active': [], 'waitlist': []},
+                ranking_team_id=None
+            )
+
+        flash('Failed to load collaboration dashboard.', 'error')
+        return redirect(url_for('company_home'))
+
+
+@app.route('/team/dashboard')
+@login_required
+def team_dashboard():
+    """Intern dashboard showing team, tasks, chat and personal score."""
+    try:
+        user = get_user_by_id(session.get('user_id'))
+        if not user:
+            return redirect(url_for('login'))
+
+        try:
+            available_teams = (
+                supabase.table('teams')
+                .select('*')
+                .eq('status', TEAM_STATUS_ACTIVE)
+                .order('created_at', desc=True)
+                .limit(100)
+                .execute()
+                .data
+                or []
+            )
+        except Exception as query_error:
+            # Backward compatibility when status column is not present.
+            if 'status' in str(query_error).lower() and 'column' in str(query_error).lower():
+                available_teams = supabase.table('teams').select('*').order('created_at', desc=True).limit(100).execute().data or []
+            else:
+                raise
+
+        available_teams = [t for t in available_teams if _team_visible_for_non_member(t)]
+        for t in available_teams:
+            t['status'] = _normalize_team_status(t.get('status'))
+            t['max_capacity'] = _get_team_capacity(t)
+
+        my_apps = supabase.table('team_applications').select('*').eq('user_id', user['id']).order('applied_at', desc=True).execute().data or []
+        app_team_ids = sorted(list({row.get('team_id') for row in my_apps if row.get('team_id')}))
+        app_teams = []
+        if app_team_ids:
+            app_teams = supabase.table('teams').select('*').in_('id', app_team_ids).execute().data or []
+
+        team_lookup = {t['id']: t for t in (available_teams + app_teams) if t.get('id')}
+        for app_row in my_apps:
+            app_row['team'] = team_lookup.get(app_row.get('team_id'))
+
+        user_team_ids = _get_user_team_ids(user['id'])
+        if not user_team_ids:
+            return render_template(
+                'team_dashboard.html',
+                team=None,
+                user_teams=[],
+                tasks=[],
+                messages=[],
+                metrics={
+                    'performance_score': 0,
+                    'completed_tasks': 0,
+                    'total_tasks': 0,
+                    'timeliness': 0,
+                    'messages_sent': 0
+                },
+                user=user,
+                deadline_alerts=[],
+                recent_activity=[],
+                no_team_assigned=True,
+                db_setup_required=False,
+                available_teams=available_teams,
+                my_team_applications=my_apps,
+                my_team_application=None
+            )
+
+        team_id = request.args.get('team_id', type=int) or user_team_ids[0]
+        if team_id not in user_team_ids:
+            flash('Access denied for selected team.', 'error')
+            return redirect(url_for('home'))
+
+        team_response = supabase.table('teams').select('*').eq('id', team_id).limit(1).execute()
+        team = team_response.data[0] if team_response.data else None
+        if not team:
+            flash('Team not found.', 'error')
+            return redirect(url_for('home'))
+
+        user_teams_response = supabase.table('teams').select('id, name, project_name').in_('id', user_team_ids).order('name').execute()
+        user_teams = user_teams_response.data or []
+
+        tasks_response = (
+            supabase.table('tasks')
+            .select('*')
+            .in_('team_id', user_team_ids)
+            .eq('assigned_to_user_id', user['id'])
+            .order('deadline')
+            .execute()
+        )
+        tasks = tasks_response.data or []
+
+        team_name_lookup = {t.get('id'): t.get('name') for t in (user_teams or []) if t.get('id')}
+
+        now_utc = datetime.now(timezone.utc)
+        for task in tasks:
+            deadline_dt = _parse_iso_datetime(task.get('deadline'))
+            task['is_overdue'] = bool(deadline_dt and task.get('status') != 'completed' and deadline_dt.astimezone(timezone.utc) < now_utc)
+            task['team_name'] = team_name_lookup.get(task.get('team_id')) or f"Team {task.get('team_id')}"
+
+        messages_response = supabase.table('team_messages').select('*').eq('team_id', team_id).order('created_at', desc=False).limit(100).execute()
+        messages = messages_response.data or []
+
+        sender_ids = sorted(list({m.get('sender_id') for m in messages if m.get('sender_id')}))
+        sender_map = {}
+        if sender_ids:
+            users_response = supabase.table('users').select('id, full_name').in_('id', sender_ids).execute()
+            sender_map = {u['id']: u.get('full_name', 'Unknown') for u in (users_response.data or [])}
+
+        for msg in messages:
+            msg['sender_name'] = sender_map.get(msg.get('sender_id'), 'Unknown')
+
+        metrics = compute_user_performance_metrics(user['id'], team_id=team_id)
+        deadline_alerts = get_upcoming_deadline_alerts(team_ids=[team_id], assigned_user_id=user['id'], within_hours=48)
+        recent_activity = get_activity_feed(team_ids=[team_id], limit=20)
+        my_team_application_rows = supabase.table('team_applications').select('*').eq('team_id', team_id).eq('user_id', user['id']).limit(1).execute().data or []
+        my_team_application = my_team_application_rows[0] if my_team_application_rows else None
+        try:
+            member_rows = (
+                supabase.table('team_members')
+                .select('progress_status')
+                .eq('team_id', team_id)
+                .eq('user_id', user['id'])
+                .limit(1)
+                .execute()
+                .data or []
+            )
+            my_member_progress_status = _normalize_member_progress((member_rows[0] or {}).get('progress_status')) if member_rows else MEMBER_PROGRESS_PENDING
+        except Exception as member_status_error:
+            if 'progress_status' in str(member_status_error).lower() and 'column' in str(member_status_error).lower():
+                my_member_progress_status = MEMBER_PROGRESS_PENDING
+            else:
+                raise
+
+        return render_template(
+            'team_dashboard.html',
+            team=team,
+            user_teams=user_teams,
+            tasks=tasks,
+            messages=messages,
+            metrics=metrics,
+            user=user,
+            deadline_alerts=deadline_alerts,
+            recent_activity=recent_activity,
+            my_team_application=my_team_application,
+            available_teams=available_teams,
+            my_team_applications=my_apps,
+            no_team_assigned=False,
+            my_member_progress_status=my_member_progress_status
+        )
+    except Exception as e:
+        print(f"Error loading team dashboard: {e}")
+        user = get_user_by_id(session.get('user_id'))
+        if _is_missing_relation_error(e):
+            return render_template(
+                'team_dashboard.html',
+                team=None,
+                user_teams=[],
+                tasks=[],
+                messages=[],
+                metrics={
+                    'performance_score': 0,
+                    'completed_tasks': 0,
+                    'total_tasks': 0,
+                    'timeliness': 0,
+                    'messages_sent': 0
+                },
+                user=user,
+                deadline_alerts=[],
+                recent_activity=[],
+                no_team_assigned=False,
+                db_setup_required=True,
+                available_teams=[],
+                my_team_applications=[],
+                my_team_application=None
+            )
+
+        flash('Failed to load team dashboard.', 'error')
+        return redirect(url_for('home'))
+
+
+# ------------ Team APIs (Admin) ------------
+
+@app.route('/api/company/teams', methods=['GET'])
+@company_login_required
+def list_company_teams():
+    try:
+        company_id = session.get('company_id')
+        response = supabase.table('teams').select('*').eq('company_id', company_id).order('created_at', desc=True).execute()
+        teams = response.data or []
+        for team in teams:
+            team['status'] = _normalize_team_status(team.get('status'))
+            team['max_capacity'] = _get_team_capacity(team)
+        return jsonify({'success': True, 'teams': teams})
+    except Exception as e:
+        print(f"Error listing teams: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+
+@app.route('/api/company/teams/<int:team_id>/members', methods=['GET'])
+@company_login_required
+def list_team_members(team_id):
+    try:
+        company_id = session.get('company_id')
+        if not _is_company_team_owner(company_id, team_id):
+            return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        members = supabase.table('team_members').select('*').eq('team_id', team_id).execute().data or []
+        user_ids = [m.get('user_id') for m in members if m.get('user_id')]
+        users_map = {}
+        if user_ids:
+            users = supabase.table('users').select('id, full_name, email').in_('id', user_ids).execute().data or []
+            users_map = {u['id']: u for u in users}
+
+        for m in members:
+            m['user'] = users_map.get(m.get('user_id'))
+
+        return jsonify({'success': True, 'members': members})
+    except Exception as e:
+        print(f"Error listing team members: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+
+@app.route('/api/company/teams', methods=['POST'])
+@company_login_required
+def create_team():
+    try:
+        company_id = session.get('company_id')
+        data = request.get_json(silent=True) or {}
+
+        name = (data.get('name') or '').strip()
+        project_name = (data.get('project_name') or '').strip()
+        max_capacity = _safe_int(data.get('max_capacity'), 10)
+        max_capacity = max(1, min(max_capacity, 1000))
+        if not name or not project_name:
+            return jsonify({'success': False, 'message': 'Team name and project are required'}), 400
+
+        payload = {
+            'company_id': company_id,
+            'name': name,
+            'project_name': project_name,
+            'description': (data.get('description') or '').strip(),
+            'max_capacity': max_capacity,
+            'status': TEAM_STATUS_ACTIVE,
+            'created_at': datetime.now(timezone.utc).isoformat()
+        }
+
+        try:
+            response = supabase.table('teams').insert(payload).execute()
+        except Exception as insert_error:
+            # Backward compatibility when max_capacity column is not present yet.
+            if 'max_capacity' in str(insert_error).lower() and 'column' in str(insert_error).lower():
+                payload.pop('max_capacity', None)
+                try:
+                    response = supabase.table('teams').insert(payload).execute()
+                except Exception as nested_insert_error:
+                    if 'status' in str(nested_insert_error).lower() and 'column' in str(nested_insert_error).lower():
+                        payload.pop('status', None)
+                        response = supabase.table('teams').insert(payload).execute()
+                    else:
+                        raise
+            elif 'status' in str(insert_error).lower() and 'column' in str(insert_error).lower():
+                payload.pop('status', None)
+                response = supabase.table('teams').insert(payload).execute()
+            else:
+                raise
+        return jsonify({'success': True, 'team': (response.data or [None])[0], 'message': 'Team created successfully'})
+    except Exception as e:
+        print(f"Error creating team: {e}")
+        return jsonify({'success': False, 'message': 'Failed to create team'}), 500
+
+
+@app.route('/api/company/teams/<int:team_id>/status', methods=['PUT'])
+@company_login_required
+def update_team_status(team_id):
+    try:
+        company_id = session.get('company_id')
+        if not _is_company_team_owner(company_id, team_id):
+            return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        data = request.get_json(silent=True) or {}
+        raw_status = str(data.get('status') or '').strip().lower()
+        if raw_status not in ALLOWED_TEAM_STATUSES:
+            return jsonify({'success': False, 'message': 'Invalid status'}), 400
+        status = _normalize_team_status(raw_status)
+
+        try:
+            update_response = supabase.table('teams').update({'status': status}).eq('id', team_id).eq('company_id', company_id).execute()
+        except Exception as update_error:
+            if 'status' in str(update_error).lower() and 'column' in str(update_error).lower():
+                return jsonify({
+                    'success': False,
+                    'message': 'Please run latest team_collaboration_schema.sql to enable team pause/close controls.'
+                }), 400
+            raise
+
+        team_row = (update_response.data or [None])[0]
+        if team_row:
+            team_row['status'] = _normalize_team_status(team_row.get('status'))
+
+        return jsonify({'success': True, 'team': team_row, 'message': f'Team marked as {status}.'})
+    except Exception as e:
+        print(f"Error updating team status: {e}")
+        return jsonify({'success': False, 'message': 'Failed to update team status'}), 500
+
+
+@app.route('/api/company/teams/<int:team_id>', methods=['DELETE'])
+@company_login_required
+def remove_team(team_id):
+    try:
+        company_id = session.get('company_id')
+        if not _is_company_team_owner(company_id, team_id):
+            return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        supabase.table('teams').delete().eq('id', team_id).eq('company_id', company_id).execute()
+        return jsonify({'success': True, 'message': 'Team removed successfully'})
+    except Exception as e:
+        print(f"Error removing team: {e}")
+        return jsonify({'success': False, 'message': 'Failed to remove team'}), 500
+
+
+@app.route('/api/company/teams/<int:team_id>/ranking', methods=['GET'])
+@company_login_required
+def company_team_ranking(team_id):
+    try:
+        company_id = session.get('company_id')
+        if not _is_company_team_owner(company_id, team_id):
+            return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        refresh_team_application_scores(team_id=team_id)
+        snapshot = _enrich_admin_ranking_snapshot(team_id, get_team_ranking_snapshot(team_id))
+        team_rows = supabase.table('teams').select('*').eq('id', team_id).limit(1).execute().data or []
+        if not team_rows:
+            return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        team = team_rows[0]
+        team['status'] = _normalize_team_status(team.get('status'))
+        return jsonify({
+            'success': True,
+            'team': team,
+            'active': snapshot['active'],
+            'waitlist': snapshot['waitlist'],
+            'completed_active': snapshot.get('completed_active', []),
+            'ranking': snapshot['all']
+        })
+    except Exception as e:
+        print(f"Error loading company team ranking: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+
+@app.route('/api/company/teams/<int:team_id>/ranking/<int:application_id>', methods=['PUT'])
+@company_login_required
+def set_manual_applicant_rank(team_id, application_id):
+    """Allow admin to manually set applicant priority rank for completed contributors."""
+    try:
+        company_id = session.get('company_id')
+        if not _is_company_team_owner(company_id, team_id):
+            return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        data = request.get_json(silent=True) or {}
+        manual_rank = _safe_int(data.get('rank'))
+        if manual_rank <= 0:
+            return jsonify({'success': False, 'message': 'Rank must be a positive number'}), 400
+
+        app_rows = (
+            supabase.table('team_applications')
+            .select('id, user_id, team_id, status')
+            .eq('id', application_id)
+            .eq('team_id', team_id)
+            .limit(1)
+            .execute()
+            .data or []
+        )
+        if not app_rows:
+            return jsonify({'success': False, 'message': 'Application not found'}), 404
+
+        app_row = app_rows[0]
+        user_id = app_row.get('user_id')
+
+        completed_count = len(
+            (
+                supabase.table('tasks')
+                .select('id')
+                .eq('team_id', team_id)
+                .eq('assigned_to_user_id', user_id)
+                .eq('status', 'completed')
+                .limit(1)
+                .execute()
+                .data or []
+            )
+        )
+        if completed_count == 0:
+            return jsonify({
+                'success': False,
+                'message': 'Manual ranking is allowed only for users with completed tasks.'
+            }), 400
+
+        try:
+            supabase.table('team_applications').update({'manual_rank': manual_rank}).eq('id', application_id).execute()
+        except Exception as rank_error:
+            if 'manual_rank' in str(rank_error).lower() and 'column' in str(rank_error).lower():
+                return jsonify({
+                    'success': False,
+                    'message': 'Please run latest team_collaboration_schema.sql to enable manual ranking.'
+                }), 400
+            raise
+
+        recalculate_team_applicant_ranking(team_id)
+        snapshot = get_team_ranking_snapshot(team_id)
+        return jsonify({'success': True, 'message': 'Manual rank updated.', 'ranking': snapshot['all']})
+    except Exception as e:
+        print(f"Error setting manual applicant rank: {e}")
+        return jsonify({'success': False, 'message': 'Failed to set manual rank'}), 500
+
+
+@app.route('/api/company/teams/<int:team_id>/members', methods=['POST'])
+@company_login_required
+def add_team_member(team_id):
+    try:
+        company_id = session.get('company_id')
+        if not _is_company_team_owner(company_id, team_id):
+            return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        data = request.get_json(silent=True) or {}
+        user_id = data.get('user_id')
+        role = (data.get('role') or '').strip()
+        if not user_id or role not in {'Frontend', 'Backend', 'AI/ML'}:
+            return jsonify({'success': False, 'message': 'Valid user and role are required'}), 400
+
+        existing = supabase.table('team_members').select('id').eq('team_id', team_id).eq('user_id', user_id).limit(1).execute()
+        if existing.data:
+            return jsonify({'success': False, 'message': 'User is already in this team'}), 400
+
+        payload = {
+            'team_id': team_id,
+            'user_id': user_id,
+            'role': role,
+            'progress_status': MEMBER_PROGRESS_PENDING,
+            'joined_at': datetime.now(timezone.utc).isoformat()
+        }
+        try:
+            supabase.table('team_members').insert(payload).execute()
+        except Exception as insert_error:
+            if 'progress_status' in str(insert_error).lower() and 'column' in str(insert_error).lower():
+                payload.pop('progress_status', None)
+                supabase.table('team_members').insert(payload).execute()
+            else:
+                raise
+
+        log_activity(user_id, action_type='joined_team', team_id=team_id, details={'role': role})
+        return jsonify({'success': True, 'message': 'Member added successfully'})
+    except Exception as e:
+        print(f"Error adding team member: {e}")
+        return jsonify({'success': False, 'message': 'Failed to add member'}), 500
+
+
+@app.route('/api/company/tasks', methods=['POST'])
+@company_login_required
+def create_task():
+    try:
+        company_id = session.get('company_id')
+        data = request.get_json(silent=True) or {}
+
+        title = (data.get('title') or '').strip()
+        description = (data.get('description') or '').strip()
+        team_id = data.get('team_id')
+        assigned_to_user_id = data.get('assigned_to_user_id')
+        deadline = data.get('deadline')
+
+        if not title or not description or not team_id or not deadline:
+            return jsonify({'success': False, 'message': 'Title, description, team and deadline are required'}), 400
+
+        parsed_deadline = _parse_iso_datetime(deadline)
+        if not parsed_deadline:
+            return jsonify({'success': False, 'message': 'Invalid deadline format'}), 400
+        if parsed_deadline.astimezone(timezone.utc) <= datetime.now(timezone.utc):
+            return jsonify({'success': False, 'message': 'Deadline must be in the future'}), 400
+
+        if not _is_company_team_owner(company_id, int(team_id)):
+            return jsonify({'success': False, 'message': 'Invalid team selected'}), 400
+
+        if assigned_to_user_id and not _is_user_in_team(int(assigned_to_user_id), int(team_id)):
+            return jsonify({'success': False, 'message': 'Assigned user is not part of this team'}), 400
+
+        payload = {
+            'company_id': company_id,
+            'team_id': int(team_id),
+            'assigned_to_user_id': int(assigned_to_user_id) if assigned_to_user_id else None,
+            'title': title,
+            'description': description,
+            'deadline': parsed_deadline.astimezone(timezone.utc).isoformat(),
+            'status': 'pending',
+            'created_at': datetime.now(timezone.utc).isoformat(),
+            'updated_at': datetime.now(timezone.utc).isoformat()
+        }
+
+        response = supabase.table('tasks').insert(payload).execute()
+        if assigned_to_user_id:
+            log_activity(int(assigned_to_user_id), action_type='task_assigned', team_id=int(team_id), task_id=(response.data or [{}])[0].get('id'))
+
+        return jsonify({'success': True, 'task': (response.data or [None])[0], 'message': 'Task assigned successfully'})
+    except Exception as e:
+        print(f"Error creating task: {e}")
+        return jsonify({'success': False, 'message': 'Failed to assign task'}), 500
+
+
+@app.route('/api/company/tasks', methods=['GET'])
+@company_login_required
+def list_company_tasks():
+    try:
+        company_id = session.get('company_id')
+        team_id = request.args.get('team_id', type=int)
+        status = request.args.get('status', '').strip()
+
+        query = supabase.table('tasks').select('*').eq('company_id', company_id)
+        if team_id:
+            query = query.eq('team_id', team_id)
+        if status in {'pending', 'in_progress', 'completed', 'blocked'}:
+            query = query.eq('status', status)
+
+        tasks = query.order('created_at', desc=True).limit(300).execute().data or []
+        return jsonify({'success': True, 'tasks': tasks})
+    except Exception as e:
+        print(f"Error listing company tasks: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+
+@app.route('/api/company/tasks/<int:task_id>/status', methods=['PUT'])
+@company_login_required
+def update_company_task_status(task_id):
+    try:
+        company_id = session.get('company_id')
+        data = request.get_json(silent=True) or {}
+        new_status = (data.get('status') or '').strip()
+        if new_status not in {'pending', 'in_progress', 'completed', 'blocked'}:
+            return jsonify({'success': False, 'message': 'Invalid status'}), 400
+
+        task_row = (
+            supabase.table('tasks')
+            .select('id, team_id, assigned_to_user_id, status')
+            .eq('id', task_id)
+            .eq('company_id', company_id)
+            .limit(1)
+            .execute()
+            .data
+        )
+        task = (task_row or [None])[0]
+        if not task:
+            return jsonify({'success': False, 'message': 'Task not found'}), 404
+
+        update_data = {'status': new_status, 'updated_at': datetime.now(timezone.utc).isoformat()}
+        if new_status == 'completed':
+            update_data['completed_at'] = datetime.now(timezone.utc).isoformat()
+
+        supabase.table('tasks').update(update_data).eq('id', task_id).execute()
+
+        assignee_id = task.get('assigned_to_user_id')
+        if assignee_id:
+            log_activity(
+                assignee_id,
+                action_type='task_status_updated_by_admin',
+                team_id=task.get('team_id'),
+                task_id=task_id,
+                details={'status': new_status}
+            )
+
+        if task.get('team_id'):
+            refresh_team_application_scores(team_id=task.get('team_id'), user_id=assignee_id)
+
+        return jsonify({'success': True, 'message': 'Task status updated'})
+    except Exception as e:
+        print(f"Error updating company task status: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+
+@app.route('/api/company/tasks/<int:task_id>/rank', methods=['PUT'])
+@company_login_required
+def update_company_task_rank(task_id):
+    try:
+        company_id = session.get('company_id')
+        data = request.get_json(silent=True) or {}
+        manual_rank = _safe_int(data.get('rank'))
+        if manual_rank <= 0:
+            return jsonify({'success': False, 'message': 'Rank must be a positive number'}), 400
+
+        task_rows = (
+            supabase.table('tasks')
+            .select('id, team_id, assigned_to_user_id, status')
+            .eq('id', task_id)
+            .eq('company_id', company_id)
+            .limit(1)
+            .execute()
+            .data or []
+        )
+        task = task_rows[0] if task_rows else None
+        if not task:
+            return jsonify({'success': False, 'message': 'Task not found'}), 404
+
+        team_id = task.get('team_id')
+        user_id = task.get('assigned_to_user_id')
+        if not team_id or not user_id:
+            return jsonify({'success': False, 'message': 'Task must be assigned to a user to set rank'}), 400
+
+        if (task.get('status') or '').strip().lower() != 'completed':
+            return jsonify({'success': False, 'message': 'Manual rank can be set only after task is completed'}), 400
+
+        if not _is_team_deadline_over(team_id):
+            return jsonify({'success': False, 'message': 'Manual rank is enabled only after team deadline is over'}), 400
+
+        app_rows = (
+            supabase.table('team_applications')
+            .select('id')
+            .eq('team_id', team_id)
+            .eq('user_id', user_id)
+            .limit(1)
+            .execute()
+            .data or []
+        )
+        app = app_rows[0] if app_rows else None
+        if not app:
+            created_app = (
+                supabase.table('team_applications')
+                .insert({
+                    'team_id': team_id,
+                    'user_id': user_id,
+                    'status': 'active',
+                    'applied_at': datetime.now(timezone.utc).isoformat()
+                })
+                .execute()
+                .data or []
+            )
+            app = created_app[0] if created_app else None
+            if not app:
+                return jsonify({'success': False, 'message': 'Failed to initialize rank record for this assignee'}), 500
+
+        try:
+            supabase.table('team_applications').update({'manual_rank': manual_rank}).eq('id', app['id']).execute()
+        except Exception as rank_error:
+            if 'manual_rank' in str(rank_error).lower() and 'column' in str(rank_error).lower():
+                return jsonify({
+                    'success': False,
+                    'message': 'Please run latest team_collaboration_schema.sql to enable manual ranking.'
+                }), 400
+            raise
+
+        recalculate_team_applicant_ranking(team_id)
+        return jsonify({'success': True, 'message': 'Manual rank updated'})
+    except Exception as e:
+        print(f"Error updating company task rank: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+
+@app.route('/api/company/performance', methods=['GET'])
+@company_login_required
+def company_performance_data():
+    try:
+        company_id = session.get('company_id')
+        teams = supabase.table('teams').select('id').eq('company_id', company_id).execute().data or []
+        team_ids = [t['id'] for t in teams if t.get('id')]
+        if not team_ids:
+            return jsonify({'success': True, 'performers': [], 'team_scores': []})
+
+        members = supabase.table('team_members').select('user_id, team_id').in_('team_id', team_ids).execute().data or []
+        user_ids = sorted(list({m['user_id'] for m in members if m.get('user_id')}))
+
+        users_map = {}
+        if user_ids:
+            users = supabase.table('users').select('id, full_name, email').in_('id', user_ids).execute().data or []
+            users_map = {u['id']: u for u in users}
+
+        performers = []
+        for user_id in user_ids:
+            metrics = compute_user_performance_metrics(user_id)
+            user = users_map.get(user_id, {'full_name': 'Unknown', 'email': ''})
+            performers.append({
+                'user_id': user_id,
+                'name': user.get('full_name', 'Unknown'),
+                'email': user.get('email', ''),
+                'score': metrics['performance_score'],
+                'metrics': metrics
+            })
+
+        team_scores = []
+        for team_id in team_ids:
+            team_user_ids = [m['user_id'] for m in members if m.get('team_id') == team_id]
+            user_rows = [p for p in performers if p['user_id'] in team_user_ids]
+            avg = round(sum([r['score'] for r in user_rows]) / len(user_rows), 2) if user_rows else 0.0
+            team_scores.append({'team_id': team_id, 'score': avg})
+
+        performers.sort(key=lambda x: x['score'], reverse=True)
+        return jsonify({'success': True, 'performers': performers, 'team_scores': team_scores})
+    except Exception as e:
+        print(f"Error loading company performance data: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+
+# ------------ Team APIs (Intern + Admin) ------------
+
+@app.route('/api/teams/<int:team_id>/messages', methods=['GET'])
+@login_required
+def get_team_messages(team_id):
+    try:
+        user_id = session.get('user_id')
+        if not _is_user_in_team(user_id, team_id):
+            return jsonify({'success': False, 'message': 'Not part of this team'}), 403
+
+        response = supabase.table('team_messages').select('*').eq('team_id', team_id).order('created_at', desc=False).limit(200).execute()
+        messages = response.data or []
+
+        sender_ids = sorted(list({m.get('sender_id') for m in messages if m.get('sender_id')}))
+        sender_map = {}
+        if sender_ids:
+            users = supabase.table('users').select('id, full_name').in_('id', sender_ids).execute().data or []
+            sender_map = {u['id']: u.get('full_name', 'Unknown') for u in users}
+
+        for m in messages:
+            m['sender_name'] = sender_map.get(m.get('sender_id'), 'Unknown')
+
+        return jsonify({'success': True, 'messages': messages})
+    except Exception as e:
+        print(f"Error getting messages: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+
+@app.route('/api/teams/<int:team_id>/messages', methods=['POST'])
+@login_required
+def send_team_message(team_id):
+    try:
+        user_id = session.get('user_id')
+        if not _is_user_in_team(user_id, team_id):
+            return jsonify({'success': False, 'message': 'Not part of this team'}), 403
+
+        data = request.get_json(silent=True) or {}
+        message = (data.get('message') or '').strip()
+        if not message:
+            return jsonify({'success': False, 'message': 'Message cannot be empty'}), 400
+
+        payload = {
+            'team_id': team_id,
+            'sender_id': user_id,
+            'message': message,
+            'created_at': datetime.now(timezone.utc).isoformat()
+        }
+        response = supabase.table('team_messages').insert(payload).execute()
+
+        log_activity(user_id, action_type='message_sent', team_id=team_id)
+        refresh_team_application_scores(team_id=team_id, user_id=user_id)
+        return jsonify({'success': True, 'message': 'Sent', 'data': (response.data or [None])[0]})
+    except Exception as e:
+        print(f"Error sending team message: {e}")
+        return jsonify({'success': False, 'message': 'Failed to send message'}), 500
+
+
+@app.route('/api/teams/<int:team_id>/tasks', methods=['GET'])
+@login_required
+def get_team_tasks(team_id):
+    try:
+        user_id = session.get('user_id')
+        if not _is_user_in_team(user_id, team_id):
+            return jsonify({'success': False, 'message': 'Not part of this team'}), 403
+
+        response = supabase.table('tasks').select('*').eq('team_id', team_id).eq('assigned_to_user_id', user_id).order('deadline').execute()
+        return jsonify({'success': True, 'tasks': response.data or []})
+    except Exception as e:
+        print(f"Error getting tasks: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+
+@app.route('/api/teams/<int:team_id>/activity', methods=['GET'])
+@login_required
+def get_team_activity(team_id):
+    try:
+        user_id = session.get('user_id')
+        if not _is_user_in_team(user_id, team_id):
+            return jsonify({'success': False, 'message': 'Not part of this team'}), 403
+
+        feed = get_activity_feed(team_ids=[team_id], limit=30)
+        return jsonify({'success': True, 'activity': feed})
+    except Exception as e:
+        print(f"Error getting team activity: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+
+@app.route('/api/teams/<int:team_id>/member-status', methods=['PUT'])
+@login_required
+def update_my_member_status(team_id):
+    try:
+        user_id = session.get('user_id')
+        if not _is_user_in_team(user_id, team_id):
+            return jsonify({'success': False, 'message': 'Not part of this team'}), 403
+
+        data = request.get_json(silent=True) or {}
+        new_status = _normalize_member_progress(data.get('status'))
+        if new_status not in {MEMBER_PROGRESS_IN_PROGRESS, MEMBER_PROGRESS_COMPLETED}:
+            return jsonify({'success': False, 'message': 'Status can be updated only to in_progress or completed'}), 400
+
+        update_payload = {'progress_status': new_status}
+        try:
+            updated = (
+                supabase.table('team_members')
+                .update(update_payload)
+                .eq('team_id', team_id)
+                .eq('user_id', user_id)
+                .execute()
+                .data or []
+            )
+        except Exception as update_error:
+            if 'progress_status' in str(update_error).lower() and 'column' in str(update_error).lower():
+                return jsonify({
+                    'success': False,
+                    'message': 'Please run latest team_collaboration_schema.sql to enable member status tracking.'
+                }), 400
+            raise
+
+        if not updated:
+            return jsonify({'success': False, 'message': 'Team membership not found'}), 404
+
+        log_activity(user_id, action_type='member_status_updated', team_id=team_id, details={'status': new_status})
+        refresh_team_application_scores(team_id=team_id, user_id=user_id)
+        return jsonify({'success': True, 'message': 'Status updated', 'status': new_status})
+    except Exception as e:
+        print(f"Error updating member status: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+
+@app.route('/api/tasks/<int:task_id>/status', methods=['PUT'])
+@login_required
+def update_task_status(task_id):
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json(silent=True) or {}
+        new_status = data.get('status')
+        if new_status not in {'pending', 'in_progress', 'completed', 'blocked'}:
+            return jsonify({'success': False, 'message': 'Invalid status'}), 400
+
+        task_response = supabase.table('tasks').select('*').eq('id', task_id).eq('assigned_to_user_id', user_id).limit(1).execute()
+        task = (task_response.data or [None])[0]
+        if not task:
+            return jsonify({'success': False, 'message': 'Task not found'}), 404
+
+        update_data = {
+            'status': new_status,
+            'updated_at': datetime.now(timezone.utc).isoformat()
+        }
+        if new_status == 'completed':
+            update_data['completed_at'] = datetime.now(timezone.utc).isoformat()
+
+        supabase.table('tasks').update(update_data).eq('id', task_id).execute()
+
+        duration_minutes = None
+        if new_status == 'completed':
+            created_dt = _parse_iso_datetime(task.get('created_at'))
+            if created_dt:
+                duration = datetime.now(timezone.utc) - created_dt.astimezone(timezone.utc)
+                duration_minutes = int(duration.total_seconds() // 60)
+
+        log_activity(
+            user_id,
+            action_type='task_completed' if new_status == 'completed' else 'task_status_updated',
+            team_id=task.get('team_id'),
+            task_id=task_id,
+            duration_minutes=duration_minutes,
+            details={'status': new_status}
+        )
+
+        if task.get('team_id'):
+            refresh_team_application_scores(team_id=task.get('team_id'), user_id=user_id)
+
+        return jsonify({'success': True, 'message': 'Task updated successfully'})
+    except Exception as e:
+        print(f"Error updating task status: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+
+@app.route('/api/me/performance', methods=['GET'])
+@login_required
+def my_performance():
+    try:
+        user_id = session.get('user_id')
+        team_id = request.args.get('team_id', type=int)
+        if team_id and not _is_user_in_team(user_id, team_id):
+            return jsonify({'success': False, 'message': 'Not part of this team'}), 403
+
+        metrics = compute_user_performance_metrics(user_id, team_id=team_id)
+        return jsonify({'success': True, 'metrics': metrics})
+    except Exception as e:
+        print(f"Error loading personal performance: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+
+@app.route('/apply', methods=['POST'])
+@login_required
+def apply_for_team():
+    """Unlimited team applications with ranking and waitlist support."""
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json(silent=True) or {}
+        team_id = _safe_int(data.get('team_id'))
+        desired_role = (data.get('role') or data.get('desired_role') or '').strip() or 'Frontend'
+        repository_link = (data.get('repository_link') or '').strip()
+
+        if not team_id:
+            return jsonify({'success': False, 'message': 'team_id is required'}), 400
+        if not repository_link:
+            return jsonify({'success': False, 'message': 'Repository link is required'}), 400
+        if not re.match(r'^https?://', repository_link, re.IGNORECASE):
+            return jsonify({'success': False, 'message': 'Repository link must start with http:// or https://'}), 400
+
+        team_rows = supabase.table('teams').select('*').eq('id', team_id).limit(1).execute().data or []
+        if not team_rows:
+            return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        team = team_rows[0]
+        team_status = _normalize_team_status(team.get('status'))
+        if team_status == TEAM_STATUS_PAUSED:
+            return jsonify({'success': False, 'message': 'This team is paused. New applications are temporarily disabled.'}), 400
+        if team_status == TEAM_STATUS_CLOSED:
+            return jsonify({'success': False, 'message': 'This team is closed for applications.'}), 400
+
+        existing = (
+            supabase.table('team_applications')
+            .select('*')
+            .eq('team_id', team_id)
+            .eq('user_id', user_id)
+            .limit(1)
+            .execute()
+            .data or []
+        )
+
+        user = get_user_by_id(user_id)
+        if not user:
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+
+        ats_score = _estimate_ats_score_from_profile(user)
+        github_score = _estimate_github_score(user_id, user=user)
+        performance_score = compute_user_performance_metrics(user_id, team_id=team_id).get('performance_score', 0)
+        total_score = _calculate_total_rank_score(ats_score, github_score, performance_score)
+
+        if existing:
+            app_row = existing[0]
+            update_payload = {
+                'desired_role': desired_role,
+                'repository_link': repository_link,
+                'ats_score': ats_score,
+                'github_score': github_score,
+                'performance_score': round(_clamp_score(performance_score), 2),
+                'total_score': total_score
+            }
+            try:
+                supabase.table('team_applications').update(update_payload).eq('id', app_row['id']).execute()
+            except Exception as update_error:
+                if 'repository_link' in str(update_error).lower() and 'column' in str(update_error).lower():
+                    return jsonify({'success': False, 'message': 'Please run latest team_collaboration_schema.sql to enable repository link for team joining.'}), 400
+                raise
+        else:
+            payload = {
+                'user_id': user_id,
+                'team_id': team_id,
+                'desired_role': desired_role,
+                'repository_link': repository_link,
+                'ats_score': ats_score,
+                'github_score': github_score,
+                'performance_score': round(_clamp_score(performance_score), 2),
+                'total_score': total_score,
+                'status': 'waitlisted',
+                'rank': None,
+                'applied_at': datetime.now(timezone.utc).isoformat()
+            }
+            try:
+                supabase.table('team_applications').insert(payload).execute()
+            except Exception as insert_error:
+                if 'repository_link' in str(insert_error).lower() and 'column' in str(insert_error).lower():
+                    return jsonify({'success': False, 'message': 'Please run latest team_collaboration_schema.sql to enable repository link for team joining.'}), 400
+                raise
+
+            log_activity(user_id, action_type='applied_to_team', team_id=team_id, details={'desired_role': desired_role, 'repository_link': repository_link})
+
+        recalculate_team_applicant_ranking(team_id)
+        current_rows = (
+            supabase.table('team_applications')
+            .select('*')
+            .eq('team_id', team_id)
+            .eq('user_id', user_id)
+            .limit(1)
+            .execute()
+            .data or []
+        )
+        current = current_rows[0] if current_rows else {}
+
+        return jsonify({
+            'success': True,
+            'message': 'Applied successfully',
+            'application': current
+        })
+    except Exception as e:
+        print(f"Error applying to team: {e}")
+        return jsonify({'success': False, 'message': 'Failed to apply'}), 500
+
+
+@app.route('/team/<int:team_id>/ranking', methods=['GET'])
+def team_ranking(team_id):
+    try:
+        user_id = session.get('user_id')
+        company_id = session.get('company_id')
+        if not user_id and not company_id:
+            return jsonify({'success': False, 'message': 'Authentication required'}), 401
+
+        team_rows = supabase.table('teams').select('*').eq('id', team_id).limit(1).execute().data or []
+        if not team_rows:
+            return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        team = team_rows[0]
+        team['status'] = _normalize_team_status(team.get('status'))
+
+        # Closed teams are hidden from non-members/non-applicants.
+        if team['status'] == TEAM_STATUS_CLOSED and user_id:
+            is_member = _is_user_in_team(user_id, team_id)
+            has_application = bool(
+                supabase.table('team_applications').select('id').eq('team_id', team_id).eq('user_id', user_id).limit(1).execute().data
+            )
+            if not is_member and not has_application:
+                return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        refresh_team_application_scores(team_id=team_id)
+        snapshot = get_team_ranking_snapshot(team_id)
+        return jsonify({
+            'success': True,
+            'team': team,
+            'active': snapshot['active'],
+            'waitlist': snapshot['waitlist'],
+            'ranking': snapshot['all']
+        })
+    except Exception as e:
+        print(f"Error loading team ranking: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+
+@app.route('/update-performance', methods=['POST'])
+@login_required
+def update_applicant_performance():
+    """Update performance and re-rank dynamically."""
+    try:
+        data = request.get_json(silent=True) or {}
+        team_id = _safe_int(data.get('team_id'))
+        user_id = _safe_int(data.get('user_id'), session.get('user_id'))
+
+        if not team_id:
+            return jsonify({'success': False, 'message': 'team_id is required'}), 400
+
+        app_rows = (
+            supabase.table('team_applications')
+            .select('*')
+            .eq('team_id', team_id)
+            .eq('user_id', user_id)
+            .limit(1)
+            .execute()
+            .data or []
+        )
+        if not app_rows:
+            return jsonify({'success': False, 'message': 'Application not found'}), 404
+
+        app_row = app_rows[0]
+        user = get_user_by_id(user_id)
+
+        ats_score = data.get('ats_score')
+        github_score = data.get('github_score')
+        performance_score = data.get('performance_score')
+
+        if ats_score is None:
+            ats_score = _estimate_ats_score_from_profile(user)
+        if github_score is None:
+            github_score = _estimate_github_score(user_id, user=user)
+        if performance_score is None:
+            performance_score = compute_user_performance_metrics(user_id, team_id=team_id).get('performance_score', 0)
+
+        total_score = _calculate_total_rank_score(ats_score, github_score, performance_score)
+
+        supabase.table('team_applications').update({
+            'ats_score': round(_clamp_score(ats_score), 2),
+            'github_score': round(_clamp_score(github_score), 2),
+            'performance_score': round(_clamp_score(performance_score), 2),
+            'total_score': total_score
+        }).eq('id', app_row['id']).execute()
+
+        log_activity(user_id, action_type='performance_updated', team_id=team_id, details={
+            'ats_score': round(_clamp_score(ats_score), 2),
+            'github_score': round(_clamp_score(github_score), 2),
+            'performance_score': round(_clamp_score(performance_score), 2),
+            'total_score': total_score
+        })
+
+        recalculate_team_applicant_ranking(team_id)
+
+        current_rows = (
+            supabase.table('team_applications')
+            .select('*')
+            .eq('team_id', team_id)
+            .eq('user_id', user_id)
+            .limit(1)
+            .execute()
+            .data or []
+        )
+
+        return jsonify({'success': True, 'application': current_rows[0] if current_rows else None})
+    except Exception as e:
+        print(f"Error updating applicant performance: {e}")
+        return jsonify({'success': False, 'message': 'Failed to update performance'}), 500
+
+
+@app.route('/leaderboard', methods=['GET'])
+@login_required
+def leaderboard():
+    try:
+        team_id = request.args.get('team_id', type=int)
+        if team_id:
+            snapshot = get_team_ranking_snapshot(team_id)
+            return jsonify({'success': True, 'team_id': team_id, 'leaderboard': snapshot['all']})
+
+        teams = supabase.table('teams').select('*').order('created_at', desc=True).limit(200).execute().data or []
+        payload = []
+        for team in teams:
+            snapshot = get_team_ranking_snapshot(team['id'])
+            payload.append({
+                'team': team,
+                'active': snapshot['active'],
+                'waitlist_count': len(snapshot['waitlist'])
+            })
+
+        return jsonify({'success': True, 'leaderboard': payload})
+    except Exception as e:
+        print(f"Error loading leaderboard: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+
+@app.route('/waitlist', methods=['GET'])
+@login_required
+def waitlist():
+    try:
+        team_id = request.args.get('team_id', type=int)
+        if team_id:
+            snapshot = get_team_ranking_snapshot(team_id)
+            return jsonify({'success': True, 'team_id': team_id, 'waitlist': snapshot['waitlist']})
+
+        rows = (
+            supabase.table('team_applications')
+            .select('*')
+            .eq('status', 'waitlisted')
+            .order('team_id')
+            .order('rank')
+            .execute()
+            .data or []
+        )
+        return jsonify({'success': True, 'waitlist': rows})
+    except Exception as e:
+        print(f"Error loading waitlist: {e}")
         return jsonify({'success': False, 'message': 'Server error'}), 500
 
 

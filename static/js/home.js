@@ -38,6 +38,17 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentSpeech = null;
     let recognition = null;
     let isListening = false;
+    const currentUiLanguage = String(document.body?.dataset?.language || 'en').toLowerCase();
+
+    function getChatWelcomeByLanguage(langCode) {
+        if (langCode === 'hi') {
+            return "👋 नमस्ते! मैं आपकी PM Internship Assistant हूँ। आज मैं आपकी कैसे मदद कर सकती हूँ?";
+        }
+        if (langCode === 'mr') {
+            return "👋 नमस्कार! मी तुमची PM Internship Assistant आहे. आज मी तुमची कशी मदत करू शकते?";
+        }
+        return "👋 Hello! I'm your PM Internship Assistant. How can I help you today?";
+    }
     
     // Language detection for speech
     function detectTextLanguage(text) {
@@ -865,7 +876,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Add welcome message if no messages exist
             if (chatMessages.children.length === 0) {
-                addMessage("👋 Hello! I'm your PM Internship Assistant. How can I help you today?", false, { 
+                addMessage(getChatWelcomeByLanguage(currentUiLanguage), false, {
                     personalized: true, 
                     responseTime: '0.1' 
                 });
@@ -1070,6 +1081,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({ 
                     message: trimmedMessage,
+                    language: currentUiLanguage,
                     timestamp: new Date().toISOString()
                 }),
                 signal: controller.signal

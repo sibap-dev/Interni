@@ -495,6 +495,9 @@
                 <li><a href="{{ url_for('company_profile') }}" {% if request.endpoint == 'company_profile' %}class="active"{% endif %}>
                     <i class="fas fa-user"></i>Profile
                 </a></li>
+                <li><a href="{{ url_for('company_collaboration_dashboard') }}" {% if request.endpoint == 'company_collaboration_dashboard' %}class="active"{% endif %}>
+                    <i class="fas fa-people-group"></i>Collab
+                </a></li>
             </ul>
         </nav>
         
@@ -531,6 +534,9 @@
             </a></li>
             <li><a href="{{ url_for('company_profile') }}" {% if request.endpoint == 'company_profile' %}class="active"{% endif %}>
                 <i class="fas fa-user-circle"></i>Profile
+            </a></li>
+            <li><a href="{{ url_for('company_collaboration_dashboard') }}" {% if request.endpoint == 'company_collaboration_dashboard' %}class="active"{% endif %}>
+                <i class="fas fa-people-group"></i>Collaboration
             </a></li>
             <li><a href="{{ url_for('logout') }}">
                 <i class="fas fa-sign-out-alt"></i>Logout

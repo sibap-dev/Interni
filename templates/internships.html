@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browse Internships - PM Internship Scheme</title>
+    <meta name="description" content="Browse and apply for active internship opportunities posted by companies on the PM Internship Scheme portal.">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #7c3aed;
+            --success: #059669;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --shadow: 0 4px 24px rgba(37,99,235,0.08);
+            --radius: 16px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ─── PAGE HEADER ─── */
+        .page-hero {
+            background: linear-gradient(135deg, #1e40af 0%, #7c3aed 100%);
+            color: #fff;
+            padding: 48px 32px 60px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        .page-hero h1 {
+            font-size: 2.4rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+            position: relative;
+        }
+        .page-hero p {
+            font-size: 1.1rem;
+            opacity: 0.88;
+            position: relative;
+        }
+        .stats-row {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            margin-top: 28px;
+            position: relative;
+        }
+        .stat-chip {
+            background: rgba(255,255,255,0.18);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 50px;
+            padding: 8px 22px;
+            font-size: 0.92rem;
+            font-weight: 600;
+        }
+        .stat-chip i { margin-right: 6px; }
+
+        /* ─── SEARCH & FILTER BAR ─── */
+        .filter-bar {
+            max-width: 1100px;
+            margin: -28px auto 0;
+            padding: 0 24px;
+            position: relative;
+            z-index: 10;
+        }
+        .filter-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 20px 24px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .search-input-wrap {
+            flex: 1;
+            min-width: 220px;
+            position: relative;
+        }
+        .search-input-wrap i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+        .search-input-wrap input {
+            width: 100%;
+            padding: 11px 14px 11px 40px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .search-input-wrap input:focus { border-color: var(--primary); }
+        .filter-select {
+            padding: 11px 16px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            background: var(--surface);
+            font-size: 0.95rem;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .filter-select:focus { border-color: var(--primary); }
+
+        /* ─── RESULTS AREA ─── */
+        .results-area {
+            max-width: 1100px;
+            margin: 28px auto;
+            padding: 0 24px 48px;
+        }
+        .results-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .results-meta span { color: var(--text-muted); font-size: 0.9rem; }
+        .results-count { font-weight: 700; color: var(--primary); }
+
+        /* ─── INTERNSHIP CARDS ─── */
+        .internship-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 24px;
+        }
+        .internship-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            border: 1.5px solid var(--border);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
+        }
+        .internship-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(37,99,235,0.14);
+            border-color: var(--primary);
+        }
+        .card-top {
+            padding: 22px 22px 16px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(135deg, #f0f7ff 0%, #f5f0ff 100%);
+        }
+        .card-company {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .company-avatar {
+            width: 46px;
+            height: 46px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 1.2rem;
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+        .company-info h4 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+        .company-info span {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        .badge-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-remote { background: #dcfce7; color: #166534; }
+        .badge-onsite { background: #fef3c7; color: #92400e; }
+        .badge-hybrid { background: #e0e7ff; color: #3730a3; }
+        .badge-govt   { background: #fee2e2; color: #991b1b; }
+        .badge-private { background: #ede9fe; color: #5b21b6; }
+
+        .card-body {
+            padding: 18px 22px;
+            flex: 1;
+        }
+        .meta-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .meta-list li {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        .meta-list li i {
+            width: 16px;
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+        .meta-list li strong { color: var(--text); }
+
+        .skills-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+        .skills-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+        .skill-pill {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+            padding: 3px 10px;
+            border-radius: 50px;
+            font-size: 0.76rem;
+            font-weight: 500;
+        }
+        .skill-pill-more {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+        }
+
+        .card-footer {
+            padding: 16px 22px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .stipend-display {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: var(--success);
+        }
+        .stipend-display small {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .btn-apply {
+            padding: 10px 22px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.88rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-apply-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #fff;
+        }
+        .btn-apply-primary:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+        .btn-apply-primary:active { transform: scale(0.98); }
+        .btn-apply-applied {
+            background: #f1f5f9;
+            color: var(--text-muted);
+            cursor: default;
+            border: 1.5px solid var(--border);
+        }
+
+        /* Status badge on card */
+        .applied-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 14px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .status-pending  { background: #fef3c7; color: #92400e; }
+        .status-reviewed { background: #e0e7ff; color: #3730a3; }
+        .status-shortlisted { background: #dcfce7; color: #166534; }
+        .status-rejected { background: #fee2e2; color: #991b1b; }
+        .status-accepted { background: #d1fae5; color: #065f46; }
+
+        /* ─── EMPTY STATE ─── */
+        .empty-state {
+            text-align: center;
+            padding: 80px 24px;
+        }
+        .empty-state i {
+            font-size: 4rem;
+            color: var(--border);
+            margin-bottom: 20px;
+        }
+        .empty-state h3 { font-size: 1.4rem; color: var(--text-muted); }
+        .empty-state p { color: var(--text-muted); margin-top: 8px; }
+
+        /* ─── TOAST ─── */
+        #toast {
+            position: fixed;
+            bottom: 28px;
+            right: 28px;
+            padding: 14px 22px;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 0.92rem;
+            font-weight: 600;
+            display: none;
+            z-index: 9999;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+            animation: slideIn 0.3s ease;
+        }
+        #toast.success { background: linear-gradient(135deg, #059669, #047857); }
+        #toast.error   { background: linear-gradient(135deg, #dc2626, #b91c1c); }
+        #toast.info    { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to   { transform: translateY(0); opacity: 1; }
+        }
+
+        /* ─── NAV BACK ─── */
+        .back-nav {
+            max-width: 1100px;
+            margin: 18px auto 0;
+            padding: 0 24px;
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--primary);
+            font-size: 0.88rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+        .back-link:hover { opacity: 0.75; }
+
+        @media (max-width: 680px) {
+            .page-hero h1 { font-size: 1.7rem; }
+            .internship-grid { grid-template-columns: 1fr; }
+            .stats-row { flex-direction: column; align-items: center; gap: 10px; }
+            .filter-card { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Back Nav -->
+<div class="back-nav">
+    <a href="{{ url_for('home') }}" class="back-link">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
+
+<!-- Hero -->
+<div class="page-hero">
+    <h1><i class="fas fa-briefcase"></i> Browse Internships</h1>
+    <p>Explore real opportunities posted by top companies. Apply with one click.</p>
+    <div class="stats-row">
+        <div class="stat-chip"><i class="fas fa-building"></i> <span id="count-number">{{ internships|length }}</span> Active Listings</div>
+        <div class="stat-chip"><i class="fas fa-check-circle"></i> Real Opportunities</div>
+        <div class="stat-chip"><i class="fas fa-bolt"></i> Instant Apply</div>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <div class="filter-card">
+        <div class="search-input-wrap">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" placeholder="Search by title, company, location…" oninput="filterCards()">
+        </div>
+        <select class="filter-select" id="workTypeFilter" onchange="filterCards()">
+            <option value="">All Work Types</option>
+            <option value="remote">Remote</option>
+            <option value="onsite">Onsite</option>
+            <option value="hybrid">Hybrid</option>
+        </select>
+        <select class="filter-select" id="sortFilter" onchange="filterCards()">
+            <option value="newest">Newest First</option>
+            <option value="stipend">Highest Stipend</option>
+        </select>
+    </div>
+</div>
+
+<!-- Results Area -->
+<div class="results-area">
+    <div class="results-meta">
+        <span>Showing <strong class="results-count" id="visibleCount">{{ internships|length }}</strong> internships</span>
+        <a href="{{ url_for('my_applications') }}" style="color:var(--primary);font-weight:600;font-size:0.88rem;text-decoration:none;">
+            <i class="fas fa-file-alt"></i> My Applications
+        </a>
+    </div>
+
+    {% if internships %}
+    <div class="internship-grid" id="internshipGrid">
+        {% for internship in internships %}
+        {% set company = internship.get('companies') or {} %}
+        {% set already_applied = internship.id in applied_ids %}
+        {% set app_status = application_statuses.get(internship.id, '') %}
+
+        <div class="internship-card"
+             data-title="{{ internship.title|lower }}"
+             data-company="{{ (company.get('company_name') or '')|lower }}"
+             data-location="{{ (internship.location or '')|lower }}"
+             data-worktype="{{ internship.work_type or 'onsite' }}"
+             data-stipend="{{ internship.stipend_amount or 0 }}">
+
+            <!-- Card Top -->
+            <div class="card-top">
+                <div class="card-company">
+                    <div class="company-avatar">
+                        {{ (company.get('company_name') or 'C')[0]|upper }}
+                    </div>
+                    <div class="company-info">
+                        <h4>{{ company.get('company_name') or 'Company' }}</h4>
+                        <span>{{ company.get('industry') or 'Industry' }}{% if company.get('city') %} · {{ company.city }}{% endif %}</span>
+                    </div>
+                </div>
+                <div class="card-title">{{ internship.title }}</div>
+                <div class="badge-row">
+                    {% if internship.work_type == 'remote' %}
+                        <span class="badge badge-remote"><i class="fas fa-wifi"></i> Remote</span>
+                    {% elif internship.work_type == 'hybrid' %}
+                        <span class="badge badge-hybrid"><i class="fas fa-random"></i> Hybrid</span>
+                    {% else %}
+                        <span class="badge badge-onsite"><i class="fas fa-building"></i> Onsite</span>
+                    {% endif %}
+                    {% if company.get('company_type') == 'government' %}
+                        <span class="badge badge-govt"><i class="fas fa-landmark"></i> Government</span>
+                    {% else %}
+                        <span class="badge badge-private"><i class="fas fa-briefcase"></i> Private</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Card Body -->
+            <div class="card-body">
+                <ul class="meta-list">
+                    <li>
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span><strong>{{ internship.location or 'TBD' }}</strong></span>
+                    </li>
+                    <li>
+                        <i class="fas fa-clock"></i>
+                        <span><strong>{{ internship.duration or 'N/A' }}</strong></span>
+                    </li>
+                    {% if internship.get('openings') %}
+                    <li>
+                        <i class="fas fa-users"></i>
+                        <span><strong>{{ internship.openings }}</strong> Opening{{ 's' if internship.openings != 1 }}</span>
+                    </li>
+                    {% endif %}
+                    {% if internship.get('application_deadline') %}
+                    <li>
+                        <i class="fas fa-calendar-times"></i>
+                        <span>Deadline: <strong>{{ internship.application_deadline[:10] }}</strong></span>
+                    </li>
+                    {% endif %}
+                </ul>
+
+                {% if internship.requirements %}
+                <div class="skills-label">Requirements</div>
+                <div class="skills-wrap">
+                    {% for skill in internship.requirements[:5] %}
+                        <span class="skill-pill">{{ skill }}</span>
+                    {% endfor %}
+                    {% if internship.requirements|length > 5 %}
+                        <span class="skill-pill skill-pill-more">+{{ internship.requirements|length - 5 }}</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% if internship.get('description') %}
+                <p style="font-size:0.83rem;color:var(--text-muted);margin-top:10px;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+                    {{ internship.description }}
+                </p>
+                {% endif %}
+            </div>
+
+            <!-- Card Footer -->
+            <div class="card-footer">
+                <div>
+                    {% if internship.get('stipend_amount') %}
+                        <div class="stipend-display">
+                            ₹{{ '{:,.0f}'.format(internship.stipend_amount) }}
+                            <small>/{{ internship.stipend_frequency or 'month' }}</small>
+                        </div>
+                    {% else %}
+                        <div class="stipend-display" style="color:var(--text-muted);font-size:0.9rem;">Stipend: Negotiable</div>
+                    {% endif %}
+                </div>
+
+                {% if already_applied %}
+                    {% set status_class = 'status-' ~ app_status %}
+                    <span class="applied-badge {{ status_class }}">
+                        <i class="fas fa-check-circle"></i>
+                        {{ app_status.replace('_',' ').title() if app_status else 'Applied' }}
+                    </span>
+                {% else %}
+                    <button class="btn-apply btn-apply-primary"
+                            onclick="applyNow({{ internship.id }}, this, '{{ internship.title|e }}')">
+                        <i class="fas fa-paper-plane"></i> Apply Now
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div id="noResults" class="empty-state" style="display:none;">
+        <i class="fas fa-search"></i>
+        <h3>No internships match your search</h3>
+        <p>Try a different keyword or clear the filters.</p>
+    </div>
+
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-briefcase"></i>
+        <h3>No active internships right now</h3>
+        <p>Check back soon — companies are always posting new opportunities!</p>
+        <a href="{{ url_for('home') }}" style="display:inline-block;margin-top:20px;padding:12px 28px;background:var(--primary);color:#fff;border-radius:10px;text-decoration:none;font-weight:700;">
+            Back to Home
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+function showToast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = type;
+    t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, 3500);
+}
+
+async function applyNow(internshipId, btn, title) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting…';
+
+    try {
+        const res = await fetch(`/api/internships/${internshipId}/apply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            btn.outerHTML = `<span class="applied-badge status-pending"><i class="fas fa-check-circle"></i> Pending Review</span>`;
+            showToast(`✅ Applied for "${title}" successfully!`, 'success');
+            // Update counter
+            const cc = document.getElementById('count-number');
+        } else if (data.already_applied) {
+            showToast(data.message, 'info');
+            btn.outerHTML = `<span class="applied-badge status-pending"><i class="fas fa-check-circle"></i> Already Applied</span>`;
+        } else {
+            showToast(data.message || 'Failed to apply. Please try again.', 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Apply Now';
+        }
+    } catch (err) {
+        showToast('Network error. Please check your connection.', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Apply Now';
+    }
+}
+
+function filterCards() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const workType = document.getElementById('workTypeFilter').value.toLowerCase();
+    const sort = document.getElementById('sortFilter').value;
+
+    const grid = document.getElementById('internshipGrid');
+    if (!grid) return;
+
+    const cards = Array.from(grid.querySelectorAll('.internship-card'));
+    let visible = 0;
+
+    cards.forEach(card => {
+        const matchQ = !q || (
+            card.dataset.title.includes(q) ||
+            card.dataset.company.includes(q) ||
+            card.dataset.location.includes(q)
+        );
+        const matchWork = !workType || card.dataset.worktype === workType;
+
+        if (matchQ && matchWork) {
+            card.style.display = '';
+            visible++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    // Sort
+    if (sort === 'stipend') {
+        const sorted = cards
+            .filter(c => c.style.display !== 'none')
+            .sort((a, b) => parseFloat(b.dataset.stipend) - parseFloat(a.dataset.stipend));
+        sorted.forEach(c => grid.appendChild(c));
+    }
+
+    document.getElementById('visibleCount').textContent = visible;
+    const noRes = document.getElementById('noResults');
+    if (noRes) noRes.style.display = visible === 0 ? 'block' : 'none';
+}
+</script>
+</body>
+</html>

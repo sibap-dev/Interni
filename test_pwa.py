@@ -63,9 +63,13 @@ def check_icons():
     return all_exist
 
 def check_service_worker():
-    """Check service worker file"""
+    """Service worker is intentionally removed from this project."""
     sw_path = "static/service-worker.js"
-    return check_file_exists(sw_path, "Service Worker")
+    if os.path.exists(sw_path):
+        print(f"⚠️ Service Worker should be removed: {sw_path}")
+        return False
+    print(f"✅ Service Worker removed: {sw_path}")
+    return True
 
 def check_offline_page():
     """Check offline page"""
@@ -88,13 +92,14 @@ def check_pwa_integration():
                 content = f.read()
             
             has_manifest = 'rel="manifest"' in content
-            has_sw_registration = 'serviceWorker' in content
+            has_sw_registration = ('serviceWorker.register' in content) or ('/service-worker.js' in content)
             has_meta_theme = 'name="theme-color"' in content
             
-            status = "✅" if (has_manifest and has_sw_registration and has_meta_theme) else "⚠️"
-            print(f"{status} {description}: manifest({has_manifest}) SW({has_sw_registration}) theme({has_meta_theme})")
+            # Service worker registration should no longer exist.
+            status = "✅" if (has_manifest and (not has_sw_registration) and has_meta_theme) else "⚠️"
+            print(f"{status} {description}: manifest({has_manifest}) SW removed({not has_sw_registration}) theme({has_meta_theme})")
             
-            if not (has_manifest and has_sw_registration and has_meta_theme):
+            if not (has_manifest and (not has_sw_registration) and has_meta_theme):
                 all_good = False
         else:
             print(f"❌ {description}: File not found")

@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Dashboard - PM Internship</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #f5f7fc;
+            --card: #ffffff;
+            --border: #e5e7eb;
+            --text: #0f172a;
+            --muted: #64748b;
+            --primary: #1d4ed8;
+            --success: #166534;
+            --warning: #92400e;
+            --danger: #991b1b;
+            --shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+            --radius: 14px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text);
+            background: radial-gradient(circle at top right, #e8efff 0%, var(--bg) 45%);
+        }
+
+        .nav {
+            background: #fff;
+            border-bottom: 1px solid var(--border);
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .nav a {
+            text-decoration: none;
+            color: #1f2937;
+            margin-left: 10px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .page {
+            max-width: 1220px;
+            margin: 20px auto;
+            padding: 0 16px 24px;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
+            color: #fff;
+            border-radius: var(--radius);
+            padding: 18px;
+            box-shadow: var(--shadow);
+            margin-bottom: 14px;
+        }
+
+        .hero h2 { margin: 0 0 6px; }
+        .hero p { margin: 0; opacity: 0.95; }
+
+        .score {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .pill {
+            background: rgba(255, 255, 255, 0.16);
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            color: #fff;
+            border-radius: 999px;
+            padding: 6px 10px;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 14px;
+        }
+
+        .muted { color: var(--muted); }
+
+        .warning-box {
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .warning-box.setup {
+            border: 1px solid #fecaca;
+            color: #7f1d1d;
+            background: #fff1f2;
+        }
+
+        .warning-box.info {
+            border: 1px solid #bfdbfe;
+            color: #1e3a8a;
+            background: #eff6ff;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .grid-bottom {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+            font-size: 14px;
+        }
+
+        th, td {
+            text-align: left;
+            border-bottom: 1px solid #edf2f7;
+            padding: 9px;
+        }
+
+        .status {
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-block;
+        }
+
+        .pending { background: #fef3c7; color: #92400e; }
+        .in_progress { background: #dbeafe; color: #1e40af; }
+        .completed { background: #dcfce7; color: #166534; }
+        .blocked { background: #fee2e2; color: #991b1b; }
+
+        .overdue {
+            color: var(--danger);
+            font-weight: 700;
+        }
+
+        .chat-list {
+            height: 220px;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 8px;
+            background: #fafcff;
+        }
+
+        .msg {
+            margin-bottom: 6px;
+        }
+
+        .msg .meta {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+
+        .msg .body {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            padding: 6px 8px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font: inherit;
+        }
+
+        .chat-input button {
+            padding: 10px 14px;
+            border: none;
+            border-radius: 8px;
+            background: var(--primary);
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .alert {
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            border: 1px solid transparent;
+        }
+
+        .alert.warn { background: #fff7ed; border-color: #fed7aa; color: #9a3412; }
+        .alert.overdue { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+
+        .activity-item {
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .team-select {
+            margin-top: 8px;
+            max-width: 360px;
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 8px;
+        }
+
+        .toolbar button {
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .toast {
+            position: fixed;
+            right: 16px;
+            bottom: 16px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            color: #fff;
+            display: none;
+            z-index: 9999;
+            font-weight: 700;
+            box-shadow: var(--shadow);
+        }
+
+        .toast.success { background: #15803d; }
+        .toast.error { background: #b91c1c; }
+
+        .apply-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .apply-card {
+            border: 1px solid #dbe2ea;
+            border-radius: 12px;
+            padding: 12px;
+            background: #fff;
+        }
+
+        .apply-card h4 { margin: 0 0 6px; }
+        .apply-card .meta { font-size: 12px; color: #64748b; margin-bottom: 8px; }
+        .apply-actions { display: flex; gap: 8px; align-items: center; }
+        .apply-actions.two-rows { flex-direction: column; align-items: stretch; }
+        .apply-actions .row { display: flex; gap: 8px; align-items: center; }
+        .apply-actions select { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e1; }
+        .apply-actions input { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e1; }
+        .apply-actions button { width: auto; padding: 8px 10px; border-radius: 8px; border: none; background: #1d4ed8; color: #fff; font-weight: 700; cursor: pointer; }
+        .apply-actions .view-btn { background: #0f766e; }
+
+        .team-view-panel {
+            margin-top: 10px;
+            border: 1px solid #dbeafe;
+            background: #eff6ff;
+            color: #1e3a8a;
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 13px;
+        }
+
+        .joined-team-toggle {
+            border: none;
+            background: #1d4ed8;
+            color: #fff;
+            font-weight: 700;
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+
+        .score-breakdown {
+            margin-top: 10px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 13px;
+        }
+
+        .score-breakdown .line { display: flex; justify-content: space-between; margin-bottom: 4px; }
+
+        .tag {
+            font-size: 12px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 999px;
+            display: inline-block;
+        }
+
+        .tag.active { background: #dcfce7; color: #166534; }
+        .tag.waitlisted { background: #fef3c7; color: #92400e; }
+
+        @media (max-width: 980px) {
+            .grid,
+            .grid-bottom {
+                grid-template-columns: 1fr;
+            }
+
+            .apply-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body data-team-id="{{ team.id if team else 0 }}">
+    <div class="nav">
+        <div>
+            <strong>Team Dashboard</strong>
+            {% if team %}
+            <span class="muted" style="margin-left:8px;">{{ team.name }} - {{ team.project_name }}</span>
+            {% endif %}
+        </div>
+        <div>
+            <a href="{{ url_for('home') }}"><i class="fas fa-home"></i> Home</a>
+            <a href="{{ url_for('profile') }}"><i class="fas fa-user"></i> Profile</a>
+            <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+    </div>
+
+    <div class="page">
+        {% if db_setup_required %}
+        <div class="warning-box setup">
+            Collaboration schema is missing. Run team_collaboration_schema.sql in Supabase SQL editor, then reload.
+        </div>
+        {% endif %}
+
+        {% if no_team_assigned %}
+        <div class="warning-box info">
+            You are not active in any team yet. Apply to teams below and your status will update automatically based on ranking.
+        </div>
+        {% endif %}
+
+        <div class="card" style="margin-bottom:12px;">
+            <h3 style="margin:0 0 10px;">Browse Posted Teams</h3>
+            <p class="muted">View any posted team and join it. Repository link is required while joining.</p>
+            <div class="apply-grid">
+                {% for t in available_teams %}
+                <div class="apply-card" data-team-id="{{ t.id }}" data-team-name="{{ t.name }}" data-project-name="{{ t.project_name }}" data-team-description="{{ t.description or '' }}" data-team-capacity="{{ t.max_capacity or 10 }}" data-team-status="{{ t.status or 'active' }}">
+                    <h4>{{ t.name }}</h4>
+                    <div class="meta">Project: {{ t.project_name }} | Capacity: {{ t.max_capacity or 10 }} | Status: {{ t.status or 'active' }}</div>
+                    <div class="apply-actions two-rows">
+                        <div class="row">
+                            <button class="view-btn" type="button">View Team</button>
+                        </div>
+                        <div class="row">
+                            <select class="apply-role">
+                                <option value="Frontend">Frontend</option>
+                                <option value="Backend">Backend</option>
+                                <option value="AI/ML">AI/ML</option>
+                            </select>
+                        </div>
+                        <div class="row">
+                            <input class="apply-repo" type="url" placeholder="Repository link (required)" required>
+                            <button class="apply-btn" type="button">Join Team</button>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <p class="muted">No teams available for application yet.</p>
+                {% endfor %}
+            </div>
+            <div id="teamViewPanel" class="team-view-panel" style="display:none;"></div>
+        </div>
+
+        {% if team %}
+        <div class="card" style="margin-bottom:12px;">
+            <h3 style="margin:0 0 8px;">Joined Team</h3>
+            <p class="muted" style="margin:0 0 10px;">Click to view your joined team details, tasks, chat and activity.</p>
+            <button id="toggleJoinedTeamBtn" class="joined-team-toggle" type="button">Show Joined Team</button>
+            <div class="muted" style="margin-top:8px;">Current team: {{ team.name }} - {{ team.project_name }}</div>
+        </div>
+
+        <div id="joinedTeamContent" style="display:none;">
+        <section class="hero">
+            <h2>{{ team.name }}</h2>
+            <p>Project: {{ team.project_name }}{% if team.description %} | {{ team.description }}{% endif %}</p>
+
+            {% if user_teams and user_teams|length > 1 %}
+            <div>
+                <label for="teamSwitcher" style="display:block;margin-top:8px;margin-bottom:4px;">Switch Team</label>
+                <select id="teamSwitcher" class="team-select">
+                    {% for t in user_teams %}
+                    <option value="{{ t.id }}" {% if t.id == team.id %}selected{% endif %}>{{ t.name }} - {{ t.project_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            <div class="score">
+                <span class="pill">Score: {{ metrics.performance_score }}</span>
+                <span class="pill">Completed: {{ metrics.completed_tasks }}/{{ metrics.total_tasks }}</span>
+                <span class="pill">Timeliness: {{ metrics.timeliness }}%</span>
+                <span class="pill">Messages: {{ metrics.messages_sent }}</span>
+            </div>
+
+            <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <span class="pill" style="background:rgba(255,255,255,0.2);">Your Team Status: {{ my_member_progress_status or 'pending' }}</span>
+                <select id="memberProgressStatusSelect" class="team-select" style="max-width:220px;margin-top:0;">
+                    <option value="in_progress">in_progress</option>
+                    <option value="completed">completed</option>
+                </select>
+                <button id="saveMemberProgressBtn" type="button" class="joined-team-toggle">Update Status</button>
+            </div>
+
+            {% if my_team_application %}
+            <div class="score-breakdown">
+                <div class="line"><span>Your Rank</span><strong>#{{ my_team_application.rank or '-' }}</strong></div>
+                <div class="line"><span>Status</span><span class="tag {{ my_team_application.status }}">{{ my_team_application.status }}</span></div>
+                <div class="line"><span>ATS Score</span><strong>{{ my_team_application.ats_score }}</strong></div>
+                <div class="line"><span>GitHub Score</span><strong>{{ my_team_application.github_score }}</strong></div>
+                <div class="line"><span>Performance Score</span><strong>{{ my_team_application.performance_score }}</strong></div>
+                <div class="line"><span>Total Score</span><strong>{{ my_team_application.total_score }}</strong></div>
+            </div>
+            {% endif %}
+        </section>
+
+        <div class="grid">
+            <article class="card">
+                <h3>Your Assigned Tasks</h3>
+                <div class="toolbar">
+                    <button id="refreshTasksBtn" type="button"><i class="fa-solid fa-rotate"></i> Refresh Tasks</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>Title</th><th>Team</th><th>Deadline</th><th>Status</th><th>Action</th></tr>
+                    </thead>
+                    <tbody id="taskBody">
+                    {% for task in tasks %}
+                        <tr data-task-id="{{ task.id }}">
+                            <td>{{ task.title }}</td>
+                            <td>{{ task.team_name or task.team_id }}</td>
+                            <td>{% if task.is_overdue %}<span class="overdue">{{ task.deadline }}</span>{% else %}{{ task.deadline }}{% endif %}</td>
+                            <td><span class="status {{ task.status }}">{{ task.status }}</span></td>
+                            <td>
+                                <select class="task-status-select" data-task-id="{{ task.id }}">
+                                    <option value="pending" {% if task.status == 'pending' %}selected{% endif %}>pending</option>
+                                    <option value="in_progress" {% if task.status == 'in_progress' %}selected{% endif %}>in_progress</option>
+                                    <option value="completed" {% if task.status == 'completed' %}selected{% endif %}>completed</option>
+                                    <option value="blocked" {% if task.status == 'blocked' %}selected{% endif %}>blocked</option>
+                                </select>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="5" class="muted">No tasks assigned yet.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </article>
+
+            <article class="card">
+                <h3>Team Chat</h3>
+                <div class="chat-list" id="chatList">
+                    {% for m in messages %}
+                        <div class="msg">
+                            <div class="meta">{{ m.sender_name }} | {{ m.created_at }}</div>
+                            <div class="body">{{ m.message }}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="chat-input">
+                    <input id="chatInput" placeholder="Write a message...">
+                    <button id="sendBtn" type="button">Send</button>
+                </div>
+            </article>
+        </div>
+
+        <div class="grid-bottom">
+            <article class="card">
+                <h3>Deadline Alerts</h3>
+                <div id="deadlineAlertList">
+                    {% for a in deadline_alerts %}
+                        <div class="alert {% if a.is_overdue %}overdue{% else %}warn{% endif %}">
+                            <strong>{{ a.title }}</strong>
+                            {% if a.is_overdue %}
+                                is overdue by {{ (a.minutes_remaining * -1) // 60 }}h.
+                            {% else %}
+                                is due in {{ a.minutes_remaining // 60 }}h.
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <p class="muted">No urgent deadlines.</p>
+                    {% endfor %}
+                </div>
+            </article>
+        </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const teamId = Number(document.body.dataset.teamId || 0);
+
+        function showToast(message, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 2600);
+        }
+
+        async function requestJson(url, options = {}) {
+            const response = await fetch(url, options);
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Request failed');
+            }
+            return data;
+        }
+
+        const switcher = document.getElementById('teamSwitcher');
+        if (switcher) {
+            switcher.addEventListener('change', (event) => {
+                const nextTeamId = Number(event.target.value || 0);
+                if (nextTeamId) {
+                    window.location.href = `/team/dashboard?team_id=${nextTeamId}`;
+                }
+            });
+        }
+
+        document.querySelectorAll('.task-status-select').forEach((selectElement) => {
+            selectElement.addEventListener('change', async (event) => {
+                const taskId = Number(event.target.dataset.taskId || 0);
+                const status = event.target.value;
+                if (!taskId) {
+                    return;
+                }
+
+                try {
+                    await requestJson(`/api/tasks/${taskId}/status`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status })
+                    });
+                    showToast('Task status updated', 'success');
+                    window.location.reload();
+                } catch (error) {
+                    showToast(error.message, 'error');
+                }
+            });
+        });
+
+        async function fetchMessages() {
+            if (!teamId) {
+                return;
+            }
+
+            try {
+                const data = await requestJson(`/api/teams/${teamId}/messages`);
+                const chat = document.getElementById('chatList');
+                if (!chat) {
+                    return;
+                }
+
+                chat.innerHTML = '';
+                (data.messages || []).forEach((message) => {
+                    const wrap = document.createElement('div');
+                    wrap.className = 'msg';
+                    wrap.innerHTML = `<div class="meta"></div><div class="body"></div>`;
+                    wrap.querySelector('.meta').textContent = `${message.sender_name || 'Unknown'} | ${message.created_at || ''}`;
+                    wrap.querySelector('.body').textContent = message.message || '';
+                    chat.appendChild(wrap);
+                });
+                chat.scrollTop = chat.scrollHeight;
+            } catch (error) {
+                // Silent in polling to avoid noisy UX.
+            }
+        }
+
+        document.getElementById('sendBtn')?.addEventListener('click', async () => {
+            const input = document.getElementById('chatInput');
+            const message = (input?.value || '').trim();
+            if (!teamId || !message) {
+                return;
+            }
+
+            try {
+                await requestJson(`/api/teams/${teamId}/messages`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+                input.value = '';
+                showToast('Message sent', 'success');
+                fetchMessages();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        });
+
+        document.getElementById('chatInput')?.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                document.getElementById('sendBtn')?.click();
+            }
+        });
+
+        document.getElementById('refreshTasksBtn')?.addEventListener('click', () => {
+            window.location.reload();
+        });
+
+        document.querySelectorAll('.apply-card .apply-btn').forEach((button) => {
+            button.addEventListener('click', async (event) => {
+                const card = event.target.closest('.apply-card');
+                const teamIdForApply = Number(card?.dataset.teamId || 0);
+                const role = card?.querySelector('.apply-role')?.value || 'Frontend';
+                const repositoryLink = String(card?.querySelector('.apply-repo')?.value || '').trim();
+                if (!teamIdForApply) {
+                    return;
+                }
+                if (!repositoryLink) {
+                    showToast('Repository link is required to join team', 'error');
+                    return;
+                }
+
+                try {
+                    const data = await requestJson('/apply', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ team_id: teamIdForApply, role, repository_link: repositoryLink })
+                    });
+
+                    showToast(`Applied. Rank #${data.application?.rank || '-'} (${data.application?.status || 'waitlisted'})`, 'success');
+                    window.location.reload();
+                } catch (error) {
+                    showToast(error.message, 'error');
+                }
+            });
+        });
+
+        document.querySelectorAll('.apply-card .view-btn').forEach((button) => {
+            button.addEventListener('click', (event) => {
+                const card = event.target.closest('.apply-card');
+                const panel = document.getElementById('teamViewPanel');
+                if (!card || !panel) {
+                    return;
+                }
+
+                const name = card.dataset.teamName || 'Team';
+                const project = card.dataset.projectName || '-';
+                const description = card.dataset.teamDescription || 'No description provided.';
+                const capacity = card.dataset.teamCapacity || '10';
+                const status = card.dataset.teamStatus || 'active';
+
+                panel.style.display = 'block';
+                panel.innerHTML = `<strong>${name}</strong><br>Project: ${project}<br>Capacity: ${capacity}<br>Status: ${status}<br>Description: ${description}`;
+            });
+        });
+
+        const joinedTeamToggle = document.getElementById('toggleJoinedTeamBtn');
+        const joinedTeamContent = document.getElementById('joinedTeamContent');
+        if (joinedTeamToggle && joinedTeamContent) {
+            joinedTeamToggle.addEventListener('click', () => {
+                const isHidden = joinedTeamContent.style.display === 'none';
+                joinedTeamContent.style.display = isHidden ? 'block' : 'none';
+                joinedTeamToggle.textContent = isHidden ? 'Hide Joined Team' : 'Show Joined Team';
+            });
+        }
+
+        document.getElementById('saveMemberProgressBtn')?.addEventListener('click', async () => {
+            if (!teamId) {
+                return;
+            }
+
+            const status = String(document.getElementById('memberProgressStatusSelect')?.value || '').trim();
+            if (!status) {
+                return;
+            }
+
+            try {
+                await requestJson(`/api/teams/${teamId}/member-status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status })
+                });
+                showToast('Team status updated', 'success');
+                window.location.reload();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        });
+
+        if (teamId) {
+            setInterval(fetchMessages, 5000);
+        }
+    </script>
+</body>
+</html>

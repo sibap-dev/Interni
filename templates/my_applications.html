@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Applications - PM Internship Scheme</title>
+    <meta name="description" content="Track all your internship applications and their statuses.">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #7c3aed;
+            --success: #059669;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --shadow: 0 4px 24px rgba(37,99,235,0.08);
+            --radius: 16px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #1e40af 0%, #7c3aed 100%);
+            color: #fff;
+            padding: 48px 32px 60px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        .page-hero h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        .page-hero p {
+            font-size: 1rem;
+            opacity: 0.88;
+            position: relative;
+        }
+
+        /* ─── STATS BAR ─── */
+        .stats-bar {
+            max-width: 900px;
+            margin: -30px auto 0;
+            padding: 0 24px;
+            position: relative;
+            z-index: 10;
+        }
+        .stats-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            overflow: hidden;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 18px;
+            border-right: 1px solid var(--border);
+        }
+        .stat-item:last-child { border-right: none; }
+        .stat-item .num {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+        .stat-item .label {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* ─── SECTION ─── */
+        .section-wrap {
+            max-width: 900px;
+            margin: 30px auto 48px;
+            padding: 0 24px;
+        }
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-title i { color: var(--primary); }
+
+        /* ─── APP CARD ─── */
+        .app-card {
+            background: var(--surface);
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 16px;
+            overflow: hidden;
+            transition: box-shadow 0.2s, border-color 0.2s;
+        }
+        .app-card:hover {
+            box-shadow: 0 8px 32px rgba(37,99,235,0.1);
+            border-color: var(--primary);
+        }
+
+        .app-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 20px 22px 16px;
+            flex-wrap: wrap;
+        }
+        .app-card-left { display: flex; align-items: center; gap: 14px; }
+        .company-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+        .app-info h3 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin-bottom: 3px;
+        }
+        .app-info p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* Status badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 16px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .status-pending     { background: #fef3c7; color: #92400e; }
+        .status-reviewed    { background: #e0e7ff; color: #3730a3; }
+        .status-shortlisted { background: #dcfce7; color: #166534; }
+        .status-rejected    { background: #fee2e2; color: #991b1b; }
+        .status-accepted    { background: #d1fae5; color: #065f46; }
+        .status-under_review { background: #e0e7ff; color: #3730a3; }
+        .status-interview_scheduled { background: #fce7f3; color: #9d174d; }
+        .status-interview_completed { background: #fce7f3; color: #9d174d; }
+        .status-selected    { background: #d1fae5; color: #065f46; }
+        .status-new         { background: #fef9c3; color: #854d0e; }
+
+        /* Meta strip */
+        .app-card-meta {
+            display: flex;
+            gap: 20px;
+            padding: 0 22px 16px;
+            flex-wrap: wrap;
+        }
+        .meta-chip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.83rem;
+            color: var(--text-muted);
+        }
+        .meta-chip i { color: var(--primary); width: 14px; }
+
+        /* Progress tracker */
+        .progress-bar-wrap {
+            padding: 0 22px 20px;
+        }
+        .progress-steps {
+            display: flex;
+            align-items: center;
+            gap: 0;
+        }
+        .prog-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            position: relative;
+        }
+        .prog-step::before {
+            content: '';
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            right: -50%;
+            height: 2px;
+            background: var(--border);
+            z-index: 0;
+        }
+        .prog-step:last-child::before { display: none; }
+        .prog-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2.5px solid var(--border);
+            background: var(--surface);
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            transition: all 0.3s;
+        }
+        .prog-dot.done {
+            background: var(--success);
+            border-color: var(--success);
+            color: #fff;
+        }
+        .prog-dot.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #fff;
+            box-shadow: 0 0 0 4px rgba(37,99,235,0.15);
+        }
+        .prog-label {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+            text-align: center;
+        }
+        .prog-step.done .prog-label,
+        .prog-step.active .prog-label { color: var(--primary); font-weight: 600; }
+
+        /* ─── EMPTY STATE ─── */
+        .empty-state {
+            text-align: center;
+            padding: 70px 24px;
+        }
+        .empty-state i {
+            font-size: 3.5rem;
+            color: #e2e8f0;
+            margin-bottom: 16px;
+        }
+        .empty-state h3 { color: var(--text-muted); font-size: 1.3rem; }
+        .empty-state p { color: var(--text-muted); margin-top: 8px; }
+        .empty-state .btn-explore {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 28px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #fff;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .back-nav {
+            max-width: 900px;
+            margin: 18px auto 0;
+            padding: 0 24px;
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--primary);
+            font-size: 0.88rem;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .back-link:hover { opacity: 0.75; }
+
+        @media (max-width: 640px) {
+            .page-hero h1 { font-size: 1.6rem; }
+            .app-card-header { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="back-nav">
+    <a href="{{ url_for('home') }}" class="back-link">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
+
+<!-- Hero -->
+<div class="page-hero">
+    <h1><i class="fas fa-file-alt"></i> My Applications</h1>
+    <p>Track all your applied internships and their current status.</p>
+</div>
+
+<!-- Stats -->
+{% set total = applications|length %}
+{% set ns = namespace(pending=0, shortlisted=0, rejected=0) %}
+{% for app in applications %}
+    {% if app.status in ['pending','new'] %}{% set ns.pending = ns.pending + 1 %}{% endif %}
+    {% if app.status in ['shortlisted','selected','accepted','interview_scheduled','interview_completed'] %}{% set ns.shortlisted = ns.shortlisted + 1 %}{% endif %}
+    {% if app.status == 'rejected' %}{% set ns.rejected = ns.rejected + 1 %}{% endif %}
+{% endfor %}
+{% set pending = ns.pending %}
+{% set shortlisted = ns.shortlisted %}
+{% set rejected = ns.rejected %}
+<div class="stats-bar">
+    <div class="stats-card">
+        <div class="stat-item">
+            <div class="num">{{ total }}</div>
+            <div class="label">Total Applied</div>
+        </div>
+        <div class="stat-item">
+            <div class="num">{{ pending }}</div>
+            <div class="label">Pending</div>
+        </div>
+        <div class="stat-item">
+            <div class="num">{{ shortlisted }}</div>
+            <div class="label">Shortlisted</div>
+        </div>
+        <div class="stat-item">
+            <div class="num">{{ rejected }}</div>
+            <div class="label">Rejected</div>
+        </div>
+    </div>
+</div>
+
+<!-- Application List -->
+<div class="section-wrap">
+    {% if applications %}
+    <div class="section-title">
+        <i class="fas fa-list-ul"></i>
+        All Applications
+        <a href="{{ url_for('internships_list') }}" style="margin-left:auto;font-size:0.85rem;font-weight:600;color:var(--primary);text-decoration:none;">
+            <i class="fas fa-plus"></i> Browse More
+        </a>
+    </div>
+
+    {% for app in applications %}
+    {% set internship = app.get('internships') or {} %}
+    {% set company = internship.get('companies') or {} %}
+    {% set status = app.get('status', 'pending') %}
+    {% set status_class = 'status-' ~ status.replace(' ','_') %}
+
+    {% set STEPS = [('pending','Applied'),('under_review','Under Review'),('shortlisted','Shortlisted'),('interview_scheduled','Interview'),('selected','Selected')] %}
+    {% set STEP_KEYS = STEPS|map(attribute=0)|list %}
+    {% set current_step_idx = STEP_KEYS.index(status) if status in STEP_KEYS else (4 if status in ['accepted','selected'] else (0 if status == 'rejected' else 0)) %}
+
+    <div class="app-card">
+        <div class="app-card-header">
+            <div class="app-card-left">
+                <div class="company-avatar">
+                    {{ (company.get('company_name') or 'C')[0]|upper }}
+                </div>
+                <div class="app-info">
+                    <h3>{{ internship.get('title') or 'Internship' }}</h3>
+                    <p>{{ company.get('company_name') or 'Company' }}{% if company.get('city') %} · {{ company.city }}{% endif %}</p>
+                </div>
+            </div>
+            <span class="status-badge {{ status_class }}">
+                {% if status == 'pending' or status == 'new' %}
+                    <i class="fas fa-clock"></i> Pending Review
+                {% elif status == 'under_review' or status == 'reviewed' %}
+                    <i class="fas fa-search"></i> Under Review
+                {% elif status == 'shortlisted' %}
+                    <i class="fas fa-star"></i> Shortlisted
+                {% elif status == 'interview_scheduled' %}
+                    <i class="fas fa-calendar-check"></i> Interview Scheduled
+                {% elif status == 'interview_completed' %}
+                    <i class="fas fa-comments"></i> Interview Done
+                {% elif status in ['selected','accepted'] %}
+                    <i class="fas fa-trophy"></i> Selected! 🎉
+                {% elif status == 'rejected' %}
+                    <i class="fas fa-times-circle"></i> Not Selected
+                {% else %}
+                    <i class="fas fa-info-circle"></i> {{ status.replace('_',' ').title() }}
+                {% endif %}
+            </span>
+        </div>
+
+        <div class="app-card-meta">
+            {% if internship.get('location') %}
+            <span class="meta-chip">
+                <i class="fas fa-map-marker-alt"></i> {{ internship.location }}
+            </span>
+            {% endif %}
+            {% if internship.get('duration') %}
+            <span class="meta-chip">
+                <i class="fas fa-clock"></i> {{ internship.duration }}
+            </span>
+            {% endif %}
+            {% if internship.get('stipend_amount') %}
+            <span class="meta-chip">
+                <i class="fas fa-rupee-sign"></i> {{ '{:,.0f}'.format(internship.stipend_amount) }}/{{ internship.get('stipend_frequency','month') }}
+            </span>
+            {% endif %}
+            {% if internship.get('work_type') %}
+            <span class="meta-chip">
+                <i class="fas fa-laptop-house"></i> {{ internship.work_type.title() }}
+            </span>
+            {% endif %}
+            {% if app.get('applied_date') %}
+            <span class="meta-chip">
+                <i class="fas fa-calendar-alt"></i> Applied {{ app.applied_date[:10] }}
+            </span>
+            {% endif %}
+        </div>
+
+        {% if status != 'rejected' %}
+        <div class="progress-bar-wrap">
+            <div class="progress-steps">
+                {% for key, label in STEPS %}
+                {% set i = loop.index0 %}
+                <div class="prog-step {% if i < current_step_idx %}done{% elif i == current_step_idx %}active{% endif %}">
+                    <div class="prog-dot {% if i < current_step_idx %}done{% elif i == current_step_idx %}active{% endif %}">
+                        {% if i < current_step_idx %}<i class="fas fa-check"></i>{% elif i == current_step_idx %}<i class="fas fa-circle"></i>{% endif %}
+                    </div>
+                    <div class="prog-label">{{ label }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div style="padding:0 22px 16px;">
+            <p style="font-size:0.82rem;color:var(--danger);">
+                <i class="fas fa-info-circle"></i>
+                This application was not shortlisted. Keep applying — more opportunities await!
+            </p>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-file-alt"></i>
+        <h3>No applications yet</h3>
+        <p>You haven't applied to any internships. Start exploring now!</p>
+        <a href="{{ url_for('internships_list') }}" class="btn-explore">
+            <i class="fas fa-briefcase"></i> Browse Internships
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+</body>
+</html>

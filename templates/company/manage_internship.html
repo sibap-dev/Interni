@@ -969,6 +969,12 @@
                 font-size: 1.5rem;
             }
         }
+
+        /* Visibility banner pulse animation */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
     </style>
 </head>
 <body>
@@ -1119,7 +1125,23 @@
                                 </div>
                                 <div class="internship-status status-{{ internship.status }}">{{ internship.status.title() }}</div>
                             </div>
-                            
+
+                            <!-- ✅ VISIBILITY BANNER: shows students whether they can see this internship -->
+                            {% if internship.status == 'active' %}
+                            <div style="display:flex;align-items:center;gap:8px;background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:8px 14px;margin:10px 0;font-size:0.82rem;font-weight:600;color:#166534;">
+                                <span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;animation:pulse 1.5s infinite;"></span>
+                                ✅ Visible to Applicants — Students can see &amp; apply for this internship
+                            </div>
+                            {% elif internship.status == 'draft' %}
+                            <div style="display:flex;align-items:center;gap:8px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:8px 14px;margin:10px 0;font-size:0.82rem;font-weight:600;color:#475569;">
+                                📋 Draft — Not visible to applicants yet. <span style="margin-left:4px;cursor:pointer;color:#2563eb;" onclick="updateInternshipStatus({{ internship.id }}, 'active')">Publish now →</span>
+                            </div>
+                            {% elif internship.status in ['closed','paused'] %}
+                            <div style="display:flex;align-items:center;gap:8px;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:8px 14px;margin:10px 0;font-size:0.82rem;font-weight:600;color:#991b1b;">
+                                🔒 {{ internship.status.title() }} — Not visible to applicants
+                            </div>
+                            {% endif %}
+
                             <div class="internship-details">
                                 <div class="detail-item">
                                     <span class="detail-icon">📍</span>
@@ -1154,7 +1176,7 @@
                                         <div class="detail-label">Deadline</div>
                                         <div class="detail-value">
                                             {% if internship.application_deadline %}
-                                                {{ internship.application_deadline.strftime('%d %b %Y') }}
+                                                {{ internship.application_deadline|string|replace('T', ' ')|truncate(16, True, '') }}
                                             {% else %}
                                                 Not set
                                             {% endif %}
@@ -1524,7 +1546,7 @@
         // API functions
         async function updateInternshipStatus(id, status) {
             try {
-                const response = await fetch(`/api/internships/${id}/status`, {
+                const response = await fetch(`/api/company/internships/${id}/status`, {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1536,7 +1558,8 @@
                     // Reload the page to reflect changes
                     window.location.reload();
                 } else {
-                    alert('Failed to update internship status');
+                    const result = await response.json().catch(() => ({}));
+                    alert(result.message || 'Failed to update internship status');
                 }
             } catch (error) {
                 console.error('Error updating status:', error);
@@ -1550,7 +1573,7 @@
             }
             
             try {
-                const response = await fetch(`/api/internships/${id}`, {
+                const response = await fetch(`/api/company/internships/${id}`, {
                     method: 'DELETE'
                 });
                 
@@ -1558,7 +1581,8 @@
                     // Reload the page to reflect changes
                     window.location.reload();
                 } else {
-                    alert('Failed to delete internship');
+                    const result = await response.json().catch(() => ({}));
+                    alert(result.message || 'Failed to delete internship');
                 }
             } catch (error) {
                 console.error('Error deleting internship:', error);
@@ -1581,8 +1605,8 @@
                 
                 try {
                     const url = currentEditingId ? 
-                        `/api/internships/${currentEditingId}` : 
-                        '/api/internships';
+                        `/api/company/internships/${currentEditingId}` : 
+                        '/api/company/internships';
                     const method = currentEditingId ? 'PUT' : 'POST';
                     
                     const response = await fetch(url, {
@@ -1597,7 +1621,8 @@
                         closeModal();
                         window.location.reload();
                     } else {
-                        alert('Failed to save internship');
+                        const result = await response.json().catch(() => ({}));
+                        alert(result.message || 'Failed to save internship');
                     }
                 } catch (error) {
                     console.error('Error saving internship:', error);

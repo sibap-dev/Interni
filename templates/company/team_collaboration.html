@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Collaboration - PM Internship Scheme</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #f3f6fb;
+            --card: #ffffff;
+            --border: #e5e7eb;
+            --text: #0f172a;
+            --muted: #64748b;
+            --primary: #1d4ed8;
+            --primary-soft: #dbeafe;
+            --success: #166534;
+            --success-soft: #dcfce7;
+            --warning: #92400e;
+            --warning-soft: #fef3c7;
+            --danger: #991b1b;
+            --danger-soft: #fee2e2;
+            --shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+            --radius: 14px;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: radial-gradient(circle at top right, #e8efff 0%, var(--bg) 48%);
+            color: var(--text);
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .page {
+            max-width: 1280px;
+            margin: 22px auto;
+            padding: 0 16px 24px;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
+            color: #fff;
+            border-radius: var(--radius);
+            padding: 22px;
+            box-shadow: var(--shadow);
+            margin-bottom: 16px;
+        }
+
+        .hero h1 { margin: 0 0 8px; font-size: 28px; }
+        .hero p { margin: 0; opacity: 0.95; }
+
+        .setup-warning {
+            border: 1px solid #fecaca;
+            background: #fff1f2;
+            color: #7f1d1d;
+            border-radius: 12px;
+            padding: 14px;
+            margin-top: 12px;
+            font-weight: 600;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(110px, 1fr));
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .stat {
+            background: rgba(255, 255, 255, 0.16);
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .stat .label { font-size: 12px; opacity: 0.9; }
+        .stat .value { font-size: 24px; font-weight: 700; margin-top: 3px; }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 14px;
+        }
+
+        .card h2,
+        .card h3 {
+            margin: 0 0 10px;
+        }
+
+        .muted { color: var(--muted); }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(1, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; }
+
+        input, select, textarea, button {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            padding: 10px;
+            font: inherit;
+        }
+
+        textarea { resize: vertical; }
+
+        button {
+            cursor: pointer;
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            color: #fff;
+            border: none;
+            font-weight: 700;
+        }
+
+        button:hover { filter: brightness(0.97); }
+
+        .form-note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+
+        .pill-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
+        .pill {
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            background: #f1f5f9;
+            color: #334155;
+        }
+
+        .alert {
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            border: 1px solid transparent;
+        }
+
+        .alert.warn { background: var(--warning-soft); color: var(--warning); border-color: #fcd34d; }
+        .alert.danger { background: var(--danger-soft); color: var(--danger); border-color: #fca5a5; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th, td {
+            border-bottom: 1px solid #eef2f7;
+            text-align: left;
+            padding: 9px;
+            vertical-align: middle;
+        }
+
+        .small { font-size: 12px; }
+
+        .status-pill {
+            display: inline-block;
+            font-size: 12px;
+            font-weight: 700;
+            border-radius: 999px;
+            padding: 3px 9px;
+        }
+
+        .pending { background: #fef3c7; color: #92400e; }
+        .in_progress { background: #dbeafe; color: #1e40af; }
+        .completed { background: #dcfce7; color: #166534; }
+        .blocked { background: #fee2e2; color: #991b1b; }
+
+        .activity-item {
+            border-bottom: 1px solid #eef2f7;
+            padding: 8px 0;
+        }
+
+        .activity-item:last-child { border-bottom: none; }
+
+        .split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .inline-select {
+            min-width: 142px;
+            padding: 6px 8px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+        }
+
+        .btn-plain {
+            width: auto;
+            background: #e2e8f0;
+            color: #0f172a;
+            border: 1px solid #cbd5e1;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .toast {
+            position: fixed;
+            right: 16px;
+            bottom: 16px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            color: #fff;
+            display: none;
+            z-index: 9999;
+            box-shadow: var(--shadow);
+            font-weight: 700;
+        }
+
+        .toast.success { background: #15803d; }
+        .toast.error { background: #b91c1c; }
+
+        .rank-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .rank-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .rank-count {
+            font-size: 12px;
+            font-weight: 700;
+            color: #334155;
+            background: #e2e8f0;
+            border-radius: 999px;
+            padding: 4px 9px;
+        }
+
+        .score-cell { font-weight: 700; }
+
+        .team-search {
+            margin-bottom: 10px;
+        }
+
+        .team-row {
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .team-row:hover {
+            background: #eff6ff;
+        }
+
+        .team-row.active {
+            background: #dbeafe;
+        }
+
+        .member-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #fff;
+            background: #2563eb;
+            margin-right: 8px;
+            font-size: 11px;
+        }
+
+        .member-role {
+            font-size: 12px;
+            font-weight: 700;
+            border-radius: 999px;
+            padding: 3px 8px;
+            display: inline-block;
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+
+        .member-meta {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .team-status {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .team-status.active { color: #166534; }
+        .team-status.paused { color: #92400e; }
+        .team-status.closed { color: #991b1b; }
+
+        .team-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .team-action-btn {
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #0f172a;
+            border-radius: 8px;
+            padding: 5px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 700;
+            width: auto;
+        }
+
+        .team-action-btn:hover { background: #f8fafc; }
+        .team-action-btn.danger { border-color: #ef4444; color: #b91c1c; }
+
+        @media (max-width: 1200px) {
+            .stats-grid { grid-template-columns: repeat(3, 1fr); }
+            .layout { grid-template-columns: 1fr; }
+            .grid-3 { grid-template-columns: 1fr; }
+            .split { grid-template-columns: 1fr; }
+            .rank-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    {% set page_title = "Collaboration" %}
+    {% include 'company/navbar.html' %}
+
+    <div class="page">
+        <section class="hero">
+            <h1><i class="fa-solid fa-people-group"></i> Team Collaboration & Performance</h1>
+            <p>Create teams, assign roles and tasks, track productivity, and review scorecards.</p>
+
+            {% if db_setup_required %}
+            <div class="setup-warning">
+                Collaboration schema is missing. Run team_collaboration_schema.sql in Supabase SQL editor, then reload.
+            </div>
+            {% endif %}
+
+            <div class="stats-grid">
+                <div class="stat"><div class="label">Teams</div><div class="value">{{ teams|length }}</div></div>
+                <div class="stat"><div class="label">Tasks</div><div class="value">{{ task_summary.total }}</div></div>
+                <div class="stat"><div class="label">Pending</div><div class="value">{{ task_summary.pending }}</div></div>
+                <div class="stat"><div class="label">In Progress</div><div class="value">{{ task_summary.in_progress }}</div></div>
+                <div class="stat"><div class="label">Completed</div><div class="value">{{ task_summary.completed }}</div></div>
+                <div class="stat"><div class="label">Overdue</div><div class="value">{{ task_summary.overdue }}</div></div>
+            </div>
+        </section>
+
+        <div class="grid-3">
+            <article class="card">
+                <h3>Create Team</h3>
+                <form id="teamForm">
+                    <label for="team_name">Team Name</label>
+                    <input id="team_name" name="name" required>
+
+                    <label for="project_name" style="margin-top:8px;">Assigned Project</label>
+                    <input id="project_name" name="project_name" required>
+
+                    <label for="team_description" style="margin-top:8px;">Description</label>
+                    <textarea id="team_description" name="description" rows="3"></textarea>
+
+                    <label for="team_max_capacity" style="margin-top:8px;">Max Active Capacity</label>
+                    <input id="team_max_capacity" name="max_capacity" type="number" min="1" max="1000" value="10" required>
+
+                    <button type="submit" style="margin-top:10px;">Create Team</button>
+                    <div class="form-note">Unlimited applicants allowed. Top N become active based on rank score.</div>
+                </form>
+            </article>
+
+        </div>
+
+        <div class="layout">
+            <article class="card">
+                <h2>Teams</h2>
+                <input id="teamSearchInput" class="team-search" placeholder="Search team by name or project..." />
+                <table>
+                    <thead>
+                        <tr><th>Team</th><th>Project</th><th>Members</th><th>Capacity</th><th>Status</th><th>Score</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="teamsTableBody">
+                    {% for team in teams %}
+                        <tr class="team-row" data-team-id="{{ team.id }}" data-team-name="{{ team.name|lower }}" data-project-name="{{ team.project_name|lower }}" data-capacity="{{ team.max_capacity }}" data-score="{{ team.performance_score }}" data-status="{{ team.status or 'active' }}">
+                            <td><strong>{{ team.name }}</strong></td>
+                            <td>{{ team.project_name }}</td>
+                            <td>{{ team.member_count }}</td>
+                            <td>{{ team.max_capacity }}</td>
+                            <td><span class="team-status {{ team.status or 'active' }}">{{ team.status or 'active' }}</span></td>
+                            <td>{{ team.performance_score }}</td>
+                            <td>
+                                <div class="team-actions" data-team-id="{{ team.id }}">
+                                    <button class="team-action-btn js-team-status" data-status="active" type="button">Activate</button>
+                                    <button class="team-action-btn js-team-status" data-status="paused" type="button">Pause</button>
+                                    <button class="team-action-btn js-team-status" data-status="closed" type="button">Close</button>
+                                    <button class="team-action-btn danger js-team-remove" type="button">Remove</button>
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="7" class="muted">No teams yet.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </article>
+
+            <article class="card">
+                <h2 id="selectedTeamTitle">Team Members</h2>
+                <p class="muted" id="selectedTeamSubtitle">Click or search and select a team to view member details.</p>
+                <table>
+                    <thead>
+                        <tr><th>Member</th><th>Role</th><th>Joined</th></tr>
+                    </thead>
+                    <tbody id="teamMembersBody">
+                        <tr><td colspan="3" class="muted">No team selected.</td></tr>
+                    </tbody>
+                </table>
+            </article>
+        </div>
+
+        <article class="card" style="margin-bottom:14px;">
+            <h2>Performance Chart</h2>
+            <canvas id="performanceChart" height="180"></canvas>
+        </article>
+
+        <article class="card" style="margin-bottom:14px;">
+            <h3>Deadline Alerts (48h)</h3>
+            {% for a in deadline_alerts %}
+                <div class="alert {% if a.is_overdue %}danger{% else %}warn{% endif %}">
+                    <strong>{{ a.title }}</strong>
+                    {% if a.is_overdue %}
+                        overdue by {{ (a.minutes_remaining * -1) // 60 }}h
+                    {% else %}
+                        due in {{ a.minutes_remaining // 60 }}h
+                    {% endif %}
+                    <span class="small">(Team {{ a.team_id }})</span>
+                </div>
+            {% else %}
+                <p class="muted">No urgent deadlines.</p>
+            {% endfor %}
+        </article>
+
+        <article class="card" style="margin-bottom:14px;">
+            <h3>Task Overview</h3>
+            <div class="pill-row">
+                <span class="pill">Pending: {{ task_summary.pending }}</span>
+                <span class="pill">In Progress: {{ task_summary.in_progress }}</span>
+                <span class="pill">Completed: {{ task_summary.completed }}</span>
+                <span class="pill">Blocked: {{ task_summary.blocked }}</span>
+                <button class="btn-plain" id="refreshTasksBtn" type="button"><i class="fa-solid fa-rotate"></i> Refresh</button>
+            </div>
+            <div class="pill-row" style="margin-top:8px;">
+                <input id="taskSearchInput" class="team-search" placeholder="Search task title or assignee..." style="max-width:280px;">
+                <select id="taskTeamFilter" class="inline-select" style="min-width:220px;">
+                    <option value="">All Teams</option>
+                    {% for team in teams %}
+                    <option value="{{ team.id }}">{{ team.name }}</option>
+                    {% endfor %}
+                </select>
+                <select id="taskStatusFilter" class="inline-select" style="min-width:170px;">
+                    <option value="">All Statuses</option>
+                    <option value="pending">pending</option>
+                    <option value="in_progress">in_progress</option>
+                    <option value="completed">completed</option>
+                    <option value="blocked">blocked</option>
+                </select>
+            </div>
+            <table>
+                <thead>
+                    <tr><th>Task</th><th>Assignee</th><th>Team</th><th>GitHub</th><th>Repository</th><th>Deadline</th><th>Status</th><th>Rank</th></tr>
+                </thead>
+                <tbody id="taskTableBody">
+                {% for task in tasks[:50] %}
+                    <tr data-task-id="{{ task.id }}" data-team-id="{{ task.team_id }}" data-status="{{ task.status }}" data-task-title="{{ task.title|lower }}" data-assignee-name="{{ task.assignee_name|lower }}">
+                        <td>{{ task.title }}</td>
+                        <td>{{ task.assignee_name }}</td>
+                        <td>{{ task.team_name or task.team_id }}</td>
+                        <td>
+                            {% if task.assignee_github_url %}
+                            <a href="{{ task.assignee_github_url }}" target="_blank" rel="noopener">Profile</a>
+                            {% elif task.assignee_github_username %}
+                            <a href="https://github.com/{{ task.assignee_github_username }}" target="_blank" rel="noopener">{{ task.assignee_github_username }}</a>
+                            {% else %}
+                            <span class="muted">Not linked</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if task.repository_link %}
+                            <a href="{{ task.repository_link }}" target="_blank" rel="noopener">Open Repo</a>
+                            {% else %}
+                            <span class="muted">Not submitted</span>
+                            {% endif %}
+                        </td>
+                        <td>{% if task.is_overdue %}<span style="color:#991b1b;font-weight:700;">{{ task.deadline }}</span>{% else %}{{ task.deadline }}{% endif %}</td>
+                        <td><span class="status-pill {{ task.status }}">{{ task.status }}</span></td>
+                        <td>
+                            {% if task.can_manual_rank %}
+                            <div style="display:flex;gap:6px;align-items:center;">
+                                <input type="number" min="1" class="inline-select task-rank-input" data-task-id="{{ task.id }}" value="{{ task.manual_rank or '' }}" style="width:84px;">
+                                <button class="btn-plain set-task-rank-btn" data-task-id="{{ task.id }}" type="button">Set</button>
+                            </div>
+                            {% else %}
+                            <span class="muted">{{ task.rank_lock_reason or 'Ranking disabled' }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="8" class="muted">No tasks available.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+
+        <div class="split">
+            <article class="card">
+                <h3>Top Performers</h3>
+                <table>
+                    <thead><tr><th>Name</th><th>Score</th><th>Completed</th></tr></thead>
+                    <tbody>
+                    {% for p in top_performers %}
+                        <tr>
+                            <td>{{ p.name }}</td>
+                            <td style="color:#166534;font-weight:700;">{{ p.score }}</td>
+                            <td>{{ p.metrics.completed_tasks }}/{{ p.metrics.total_tasks }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="3" class="muted">No data.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </article>
+
+            <article class="card">
+                <h3>Needs Attention</h3>
+                <table>
+                    <thead><tr><th>Name</th><th>Score</th><th>Messages</th></tr></thead>
+                    <tbody>
+                    {% for p in low_performers %}
+                        <tr>
+                            <td>{{ p.name }}</td>
+                            <td style="color:#991b1b;font-weight:700;">{{ p.score }}</td>
+                            <td>{{ p.metrics.messages_sent }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="3" class="muted">No data.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </article>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script id="topPerformersJson" type="application/json">{{ top_performers|tojson }}</script>
+    <script>
+        function showToast(message, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 2800);
+        }
+
+        async function requestJson(url, options = {}) {
+            const res = await fetch(url, options);
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || !json.success) {
+                throw new Error(json.message || 'Request failed');
+            }
+            return json;
+        }
+
+        document.getElementById('teamForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const data = Object.fromEntries(new FormData(event.target).entries());
+            try {
+                await requestJson('/api/company/teams', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                showToast('Team created successfully', 'success');
+                window.location.reload();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        });
+
+        document.getElementById('refreshTasksBtn').addEventListener('click', async () => {
+            try {
+                await requestJson('/api/company/tasks');
+                showToast('Latest task data fetched', 'success');
+                window.location.reload();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        });
+
+        async function submitTaskRank(taskId, rankValue) {
+            const rank = Number(rankValue || 0);
+            if (!rank || rank < 1) {
+                showToast('Please enter a valid positive manual rank.', 'error');
+                return;
+            }
+
+            try {
+                await requestJson(`/api/company/tasks/${taskId}/rank`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rank })
+                });
+                showToast('Manual rank updated', 'success');
+                window.location.reload();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        function bindTaskRankButtons() {
+            document.querySelectorAll('.set-task-rank-btn').forEach((button) => {
+                button.onclick = () => {
+                    const taskId = Number(button.dataset.taskId || 0);
+                    const row = button.closest('tr');
+                    const input = row?.querySelector('.task-rank-input');
+                    if (!taskId) {
+                        return;
+                    }
+                    submitTaskRank(taskId, input?.value);
+                };
+            });
+        }
+
+        bindTaskRankButtons();
+
+        document.querySelectorAll('.js-team-status').forEach((button) => {
+            button.addEventListener('click', async (event) => {
+                event.stopPropagation();
+                const teamId = Number(button.closest('.team-actions')?.dataset?.teamId || 0);
+                const status = button.dataset.status;
+                if (!teamId || !status) {
+                    return;
+                }
+
+                try {
+                    await requestJson(`/api/company/teams/${teamId}/status`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status })
+                    });
+                    showToast(`Team marked as ${status}`, 'success');
+                    window.location.reload();
+                } catch (error) {
+                    showToast(error.message, 'error');
+                }
+            });
+        });
+
+        document.querySelectorAll('.js-team-remove').forEach((button) => {
+            button.addEventListener('click', async (event) => {
+                event.stopPropagation();
+                const teamId = Number(button.closest('.team-actions')?.dataset?.teamId || 0);
+                if (!teamId) {
+                    return;
+                }
+
+                const confirmed = window.confirm('Remove this team permanently? This will delete team membership, tasks, chat and applications linked to it.');
+                if (!confirmed) {
+                    return;
+                }
+
+                try {
+                    await requestJson(`/api/company/teams/${teamId}`, { method: 'DELETE' });
+                    showToast('Team removed', 'success');
+                    window.location.reload();
+                } catch (error) {
+                    showToast(error.message, 'error');
+                }
+            });
+        });
+
+        function initials(name) {
+            const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+            if (!parts.length) {
+                return 'U';
+            }
+            if (parts.length === 1) {
+                return parts[0].slice(0, 2).toUpperCase();
+            }
+            return (parts[0][0] + parts[1][0]).toUpperCase();
+        }
+
+        async function loadTeamMembersDetails(teamId, teamName, capacity, score, rowElement) {
+            try {
+                document.querySelectorAll('.team-row').forEach((row) => row.classList.remove('active'));
+                if (rowElement) {
+                    rowElement.classList.add('active');
+                }
+
+                const title = document.getElementById('selectedTeamTitle');
+                const subtitle = document.getElementById('selectedTeamSubtitle');
+                const body = document.getElementById('teamMembersBody');
+                title.textContent = `Team Members - ${teamName}`;
+                const status = rowElement?.dataset?.status || 'active';
+                subtitle.textContent = `Capacity: ${capacity} | Status: ${status} | Performance Score: ${score}`;
+                body.innerHTML = '<tr><td colspan="3" class="muted">Loading members...</td></tr>';
+
+                const result = await requestJson(`/api/company/teams/${teamId}/members`);
+                const members = result.members || [];
+
+                if (!members.length) {
+                    body.innerHTML = '<tr><td colspan="3" class="muted">No active members in this team yet.</td></tr>';
+                } else {
+                    body.innerHTML = '';
+                    members.forEach((member) => {
+                        const user = member.user || {};
+                        const fullName = user.full_name || 'Unknown';
+                        const email = user.email || '';
+                        const joined = member.joined_at || '-';
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>
+                                <span class="member-avatar">${initials(fullName)}</span>
+                                <strong>${fullName}</strong>
+                                <div class="member-meta">${email}</div>
+                            </td>
+                            <td><span class="member-role">${member.role || 'Frontend'}</span></td>
+                            <td>${joined}</td>
+                        `;
+                        body.appendChild(tr);
+                    });
+                }
+
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        document.querySelectorAll('.team-row').forEach((row) => {
+            row.addEventListener('click', () => {
+                const teamId = Number(row.dataset.teamId || 0);
+                const teamName = row.cells[0]?.innerText?.trim() || 'Team';
+                const capacity = row.dataset.capacity || '-';
+                const score = row.dataset.score || '-';
+                if (teamId) {
+                    loadTeamMembersDetails(teamId, teamName, capacity, score, row);
+                }
+            });
+        });
+
+        document.getElementById('teamSearchInput')?.addEventListener('input', (event) => {
+            const query = String(event.target.value || '').trim().toLowerCase();
+            document.querySelectorAll('.team-row').forEach((row) => {
+                const name = row.dataset.teamName || '';
+                const project = row.dataset.projectName || '';
+                const visible = !query || name.includes(query) || project.includes(query);
+                row.style.display = visible ? '' : 'none';
+            });
+        });
+
+        function applyTaskFilters() {
+            const query = String(document.getElementById('taskSearchInput')?.value || '').trim().toLowerCase();
+            const teamFilter = String(document.getElementById('taskTeamFilter')?.value || '').trim();
+            const statusFilter = String(document.getElementById('taskStatusFilter')?.value || '').trim().toLowerCase();
+
+            document.querySelectorAll('#taskTableBody tr[data-task-id]').forEach((row) => {
+                const title = String(row.cells?.[0]?.innerText || '').trim().toLowerCase();
+                const assignee = String(row.cells?.[1]?.innerText || '').trim().toLowerCase();
+                const teamId = String(row.dataset.teamId || '');
+                const status = String(row.cells?.[6]?.innerText || row.dataset.status || '').trim().toLowerCase();
+
+                const matchesQuery = !query || title.includes(query) || assignee.includes(query);
+                const matchesTeam = !teamFilter || teamId === teamFilter;
+                const matchesStatus = !statusFilter || status === statusFilter;
+
+                row.style.display = (matchesQuery && matchesTeam && matchesStatus) ? '' : 'none';
+            });
+        }
+
+        document.getElementById('taskSearchInput')?.addEventListener('input', applyTaskFilters);
+        document.getElementById('taskTeamFilter')?.addEventListener('change', applyTaskFilters);
+        document.getElementById('taskStatusFilter')?.addEventListener('change', applyTaskFilters);
+        applyTaskFilters();
+
+        const performersData = JSON.parse(document.getElementById('topPerformersJson').textContent || '[]');
+        const labels = performersData.map((item) => item.name || 'Unknown');
+        const scores = performersData.map((item) => Number(item.score || 0));
+
+        const chartElement = document.getElementById('performanceChart');
+        if (chartElement && labels.length) {
+            new Chart(chartElement, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Performance Score',
+                        data: scores,
+                        borderWidth: 0,
+                        backgroundColor: ['#1d4ed8', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, max: 100, grid: { color: '#e2e8f0' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

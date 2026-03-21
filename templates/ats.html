@@ -3,26 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CV Analyzer - Check & Improve Your ATS Score</title>
+    <title>CV Analyzer - PM Internship Scheme</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/ats.css') }}">
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="header-content">
-                <h1>CV Analyzer</h1>
-                <p class="subtitle">Upload your CV, check your ATS score, and get improvement suggestions</p>
-            </div>
+    <div class="nav-bar">
+        <div class="nav-brand">
+            <a href="{{ url_for('home') }}">
+                <img src="{{ url_for('static', filename='images/pm_internship_logo_eng.svg') }}" alt="PM Internship Logo">
+            </a>
         </div>
+        <div class="nav-actions">
+            <div class="user-info">
+                <i class="fas fa-user"></i>
+                <span>Welcome, {{ user_name if user_name else 'User' }}!</span>
+            </div>
+            <a href="{{ url_for('profile') }}" class="profile-btn">
+                <i class="fas fa-id-card"></i>
+                Profile
+            </a>
+            <a href="{{ url_for('home') }}" class="home-btn">
+                <i class="fas fa-home"></i>
+                Home
+            </a>
+            <a href="{{ url_for('logout') }}" class="logout-btn">
+                <i class="fas fa-sign-out-alt"></i>
+                Logout
+            </a>
+        </div>
+    </div>
+
+    <div class="container">
+        <header class="page-header">
+            <h1>CV Analyzer</h1>
+            <p class="subtitle">Upload your CV and get ATS-focused feedback with actionable improvements</p>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash-message flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
         
         <div class="content">
             <div class="upload-section">
+                <h2>Upload CV</h2>
                 <div class="upload-icon" id="uploadIcon">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                         <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
                     </svg>
                 </div>
-                <p>Click to upload your CV</p>
+                <p>Click or drag a file here. Supported formats: PDF, DOC, DOCX, TXT.</p>
                 <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt" style="display: none;">
                 <button class="upload-btn" id="uploadBtn">Choose File</button>
             </div>
@@ -45,9 +81,11 @@
 
                 <div class="keywords-section">
                     <h3>Keywords Analysis</h3>
+                    <h4>Matched</h4>
                     <div class="keywords-found" id="keywordsFound">
                         <!-- Keywords will be displayed here -->
                     </div>
+                    <h4>Missing</h4>
                     <div class="keywords-missing" id="keywordsMissing">
                         <!-- Missing keywords will be displayed here -->
                     </div>

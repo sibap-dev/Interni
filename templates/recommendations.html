@@ -4,207 +4,605 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Internship Recommendations - PM Internship Scheme</title>
+    <meta name="description" content="Personalized internship recommendations and live company-posted opportunities.">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/recommendations.css') }}">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #7c3aed;
+            --success: #059669;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --govt: #dc2626;
+            --private: #7c3aed;
+            --live: #059669;
+            --bg: #f1f5f9;
+            --surface: #fff;
+            --border: #e2e8f0;
+            --text: #1e293b;
+            --muted: #64748b;
+            --shadow: 0 4px 24px rgba(37,99,235,0.08);
+            --radius: 16px;
+        }
 
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+
+        /* ── NAV ── */
+        .nav-bar {
+            position: sticky; top: 0; z-index: 100;
+            background: linear-gradient(135deg,#1e40af,#7c3aed);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 28px;
+            box-shadow: 0 2px 16px rgba(37,99,235,0.25);
+        }
+        .nav-brand { display:flex; align-items:center; gap:10px; color:#fff; font-size:1.15rem; font-weight:700; }
+        .nav-brand i { font-size:1.4rem; }
+        .nav-actions { display:flex; gap:10px; }
+        .nav-btn {
+            display:flex; align-items:center; gap:6px;
+            padding:8px 16px; border-radius:8px; font-size:0.85rem; font-weight:600;
+            text-decoration:none; border:none; cursor:pointer; transition:all 0.2s;
+        }
+        .home-btn { background:rgba(255,255,255,0.18); color:#fff; }
+        .home-btn:hover { background:rgba(255,255,255,0.3); }
+        .logout-btn { background:rgba(220,53,69,0.85); color:#fff; }
+        .logout-btn:hover { background:#dc2626; }
+
+        /* ── HERO ── */
+        .hero {
+            background: linear-gradient(135deg,#1e40af,#7c3aed);
+            color:#fff; text-align:center;
+            padding: 42px 24px 62px;
+            position: relative; overflow:hidden;
+        }
+        .hero::before {
+            content:''; position:absolute; inset:0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        .hero h1 { font-size:2.2rem; font-weight:800; position:relative; }
+        .hero p { font-size:1rem; opacity:.88; position:relative; margin-top:8px; }
+        .hero-chips { display:flex; justify-content:center; gap:16px; margin-top:20px; flex-wrap:wrap; position:relative; }
+        .chip {
+            background:rgba(255,255,255,0.18); backdrop-filter:blur(8px);
+            border:1px solid rgba(255,255,255,.25);
+            border-radius:50px; padding:6px 18px; font-size:0.82rem; font-weight:600;
+        }
+        .chip i { margin-right:5px; }
+        .chip.live-chip { background:rgba(5,150,105,0.7); border-color:rgba(5,150,105,0.5); }
+
+        /* ── PROFILE CARD ── */
+        .profile-card {
+            max-width:960px; margin:-32px auto 0; padding:0 20px;
+            position:relative; z-index:10;
+        }
+        .profile-inner {
+            background:var(--surface); border-radius:var(--radius);
+            box-shadow:var(--shadow); padding:20px 24px;
+            display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+        }
+        .avatar {
+            width:52px; height:52px; border-radius:50%;
+            background:linear-gradient(135deg,var(--primary),var(--secondary));
+            color:#fff; font-size:1.3rem; font-weight:800;
+            display:flex; align-items:center; justify-content:center; flex-shrink:0;
+        }
+        .profile-text h3 { font-size:1rem; font-weight:700; }
+        .profile-text p { font-size:0.82rem; color:var(--muted); margin-top:2px; }
+        .skills-wrap { display:flex; flex-wrap:wrap; gap:6px; margin-left:auto; }
+        .skill-tag {
+            background:#eff6ff; color:#1d4ed8;
+            border:1px solid #bfdbfe; border-radius:50px;
+            padding:3px 10px; font-size:0.74rem; font-weight:600;
+        }
+
+        /* ── FILTER TABS ── */
+        .tabs-wrap {
+            max-width:960px; margin:20px auto 0; padding:0 20px;
+        }
+        .tabs-inner {
+            display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+        }
+        .tab-btn {
+            display:flex; align-items:center; gap:6px;
+            padding:8px 18px; border-radius:50px; border:1.5px solid var(--border);
+            background:var(--surface); color:var(--muted);
+            font-size:0.84rem; font-weight:600; cursor:pointer; transition:all 0.2s;
+        }
+        .tab-btn.active { border-color:var(--primary); background:var(--primary); color:#fff; }
+        .tab-btn.live.active { border-color:var(--success); background:var(--success); }
+        .tab-btn.govt-tab.active { border-color:var(--govt); background:var(--govt); }
+        .tab-btn.private-tab.active { border-color:var(--secondary); background:var(--secondary); }
+        .tab-count {
+            background:rgba(255,255,255,0.25); padding:1px 8px;
+            border-radius:50px; font-size:0.75rem;
+        }
+        .tab-btn:not(.active) .tab-count { background:#f1f5f9; color:var(--muted); }
+        .refresh-btn {
+            margin-left:auto; display:flex; align-items:center; gap:6px;
+            padding:8px 18px; border-radius:50px;
+            background:linear-gradient(135deg,var(--primary),var(--secondary));
+            color:#fff; border:none; cursor:pointer; font-size:0.84rem; font-weight:600;
+            transition:opacity 0.2s;
+        }
+        .refresh-btn:hover { opacity:.88; }
+
+        /* ── MAIN CONTENT ── */
+        .content-wrap {
+            max-width:960px; margin:24px auto 48px; padding:0 20px;
+        }
+
+        /* ── SECTION HEADERS ── */
+        .section-header {
+            display:flex; align-items:center; gap:10px; margin-bottom:16px;
+        }
+        .section-header h2 { font-size:1.1rem; font-weight:800; }
+        .section-badge {
+            padding:3px 12px; border-radius:50px; font-size:0.76rem; font-weight:700;
+        }
+        .badge-live { background:#dcfce7; color:#166534; }
+        .badge-ai { background:#ede9fe; color:#5b21b6; }
+        .section-sub { font-size:0.8rem; color:var(--muted); margin-left:auto; }
+
+        /* ── CARDS GRID ── */
+        .cards-grid {
+            display:grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap:18px; margin-bottom:36px;
+        }
+
+        /* ── LIVE INTERNSHIP CARD ── */
+        .card {
+            background:var(--surface); border-radius:var(--radius);
+            border:1.5px solid var(--border);
+            box-shadow:0 2px 10px rgba(0,0,0,0.04);
+            display:flex; flex-direction:column;
+            transition:transform 0.22s, box-shadow 0.22s, border-color 0.22s;
+        }
+        .card:hover {
+            transform:translateY(-4px);
+            box-shadow:0 12px 36px rgba(37,99,235,0.13);
+        }
+        .card-live { border-top:3px solid var(--success); }
+        .card-live:hover { border-color:var(--success); }
+        .card-govt { border-top:3px solid var(--govt); }
+        .card-govt:hover { border-color:var(--govt); }
+        .card-private { border-top:3px solid var(--secondary); }
+        .card-private:hover { border-color:var(--secondary); }
+
+        .card-head {
+            padding:18px 18px 12px;
+            background:linear-gradient(135deg,#f8fafc,#f0f4ff);
+            border-bottom:1px solid var(--border);
+        }
+        .card-company-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+        .co-avatar {
+            width:40px; height:40px; border-radius:10px; flex-shrink:0;
+            display:flex; align-items:center; justify-content:center;
+            font-size:1rem; font-weight:800; color:#fff;
+        }
+        .co-avatar-live { background:linear-gradient(135deg,#059669,#047857); }
+        .co-avatar-govt { background:linear-gradient(135deg,#dc2626,#b91c1c); }
+        .co-avatar-private { background:linear-gradient(135deg,#7c3aed,#5b21b6); }
+        .co-name { font-size:0.88rem; font-weight:700; }
+        .co-sub { font-size:0.75rem; color:var(--muted); }
+        .card-title { font-size:1rem; font-weight:700; line-height:1.4; margin-bottom:8px; }
+        .card-badges { display:flex; flex-wrap:wrap; gap:6px; }
+        .badge {
+            display:inline-flex; align-items:center; gap:4px;
+            padding:3px 9px; border-radius:50px; font-size:0.72rem; font-weight:600;
+        }
+        .b-live { background:#dcfce7; color:#166534; }
+        .b-govt { background:#fee2e2; color:#991b1b; }
+        .b-private { background:#ede9fe; color:#5b21b6; }
+        .b-remote { background:#e0f2fe; color:#0369a1; }
+        .b-onsite { background:#fef3c7; color:#92400e; }
+        .b-hybrid { background:#f3e8ff; color:#6b21a8; }
+        .b-ai { background:#f5f3ff; color:#4f46e5; }
+
+        .card-body { padding:14px 18px; flex:1; }
+        .meta-grid {
+            display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;
+        }
+        .meta-item { display:flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--muted); }
+        .meta-item i { color:var(--primary); width:14px; flex-shrink:0; }
+        .meta-item strong { color:var(--text); }
+        .card-desc {
+            font-size:0.79rem; color:var(--muted); line-height:1.55;
+            display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+            margin-bottom:10px;
+        }
+        .skills-chips { display:flex; flex-wrap:wrap; gap:5px; }
+        .skill-chip {
+            background:#f1f5f9; color:#475569; border:1px solid #e2e8f0;
+            padding:2px 8px; border-radius:50px; font-size:0.71rem; font-weight:500;
+        }
+        .skill-chip-more { background:var(--primary); color:#fff; border:none; }
+
+        .card-foot {
+            padding:12px 18px; border-top:1px solid var(--border);
+            display:flex; align-items:center; justify-content:space-between; gap:10px;
+        }
+        .stipend { font-size:1rem; font-weight:800; color:var(--success); }
+        .stipend small { font-size:0.72rem; font-weight:500; color:var(--muted); }
+        .skill-match {
+            font-size:0.76rem; font-weight:700; color:var(--secondary);
+            background:#ede9fe; padding:3px 10px; border-radius:50px;
+        }
+
+        /* Apply button */
+        .btn-apply {
+            padding:8px 18px; border-radius:9px; border:none; cursor:pointer;
+            font-size:0.82rem; font-weight:700; transition:all 0.2s; white-space:nowrap;
+        }
+        .btn-apply-primary {
+            background:linear-gradient(135deg,var(--success),#047857); color:#fff;
+        }
+        .btn-apply-primary:hover { opacity:.88; transform:scale(1.02); }
+        .applied-badge {
+            display:inline-flex; align-items:center; gap:5px;
+            padding:6px 12px; border-radius:50px; font-size:0.75rem; font-weight:600;
+        }
+        .s-pending { background:#fef3c7; color:#92400e; }
+        .s-reviewed { background:#e0e7ff; color:#3730a3; }
+        .s-shortlisted { background:#dcfce7; color:#166534; }
+        .s-rejected { background:#fee2e2; color:#991b1b; }
+        .s-accepted,.s-selected { background:#d1fae5; color:#065f46; }
+
+        /* ── EMPTY STATE ── */
+        .empty-state {
+            text-align:center; padding:48px 24px; background:var(--surface);
+            border-radius:var(--radius); border:1.5px dashed var(--border);
+        }
+        .empty-state i { font-size:3rem; color:var(--border); margin-bottom:14px; }
+        .empty-state h3 { color:var(--muted); }
+
+        /* ── TOAST ── */
+        #toast {
+            position:fixed; bottom:24px; right:24px; padding:12px 20px;
+            border-radius:12px; color:#fff; font-size:0.88rem; font-weight:600;
+            display:none; z-index:9999; box-shadow:0 8px 32px rgba(0,0,0,0.18);
+        }
+        #toast.success { background:linear-gradient(135deg,#059669,#047857); }
+        #toast.error   { background:linear-gradient(135deg,#dc2626,#b91c1c); }
+        #toast.info    { background:linear-gradient(135deg,#2563eb,#1d4ed8); }
+
+        @media (max-width:640px) {
+            .hero h1 { font-size:1.6rem; }
+            .cards-grid { grid-template-columns:1fr; }
+        }
+
+        /* hidden filter utility */
+        .card[hidden] { display:none; }
+    </style>
 </head>
 <body>
-    <!-- NAVIGATION BAR -->
-    <div class="nav-bar">
-        <div class="nav-brand">
-            <i class="fas fa-briefcase" style="color: var(--primary-color); font-size: 1.5rem;"></i>
-            <h3>PM Internship Scheme</h3>
-        </div>
-        <div class="nav-actions">
-            <a href="{{ url_for('home') }}" class="nav-btn home-btn">
-                <i class="fas fa-home"></i>
-                Home
-            </a>
-            <a href="{{ url_for('logout') }}" class="nav-btn logout-btn">
-                <i class="fas fa-sign-out-alt"></i>
-                Logout
-            </a>
-        </div>
+
+<!-- NAV -->
+<div class="nav-bar">
+    <div class="nav-brand"><i class="fas fa-briefcase"></i> PM Internship Scheme</div>
+    <div class="nav-actions">
+        <a href="{{ url_for('home') }}" class="nav-btn home-btn"><i class="fas fa-home"></i> Home</a>
+        <a href="{{ url_for('logout') }}" class="nav-btn logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
     </div>
+</div>
 
-    <div class="container">
-        <header>
-            <h1><i class="fas fa-star"></i> Personalized Recommendations</h1>
-            <p class="subtitle">AI-powered internship matches based on your profile</p>
-        </header>
+<!-- HERO -->
+<div class="hero">
+    <h1><i class="fas fa-star"></i> Your Recommendations</h1>
+    <p>Live company internships + AI-matched suggestions, all in one place</p>
+    <div class="hero-chips">
+        <div class="chip live-chip"><i class="fas fa-circle"></i> {{ live_internships|length }} Live Posted</div>
+        <div class="chip"><i class="fas fa-robot"></i> {{ recommendations|length }} AI Suggestions</div>
+        <div class="chip"><i class="fas fa-bolt"></i> Instant Apply</div>
+    </div>
+</div>
 
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="flash-messages">
-                    {% for category, message in messages %}
-                        <div class="flash-message flash-{{ category }}">
-                            <i class="fas fa-info-circle"></i>
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
+<!-- PROFILE CARD -->
+<div class="profile-card">
+    <div class="profile-inner">
+        <div class="avatar">{{ user_initials or 'U' }}</div>
+        <div class="profile-text">
+            <h3>{{ user_name or user.full_name }}</h3>
+            <p><i class="fas fa-graduation-cap"></i> {{ user.qualification|title if user.qualification else 'Not specified' }} &nbsp;·&nbsp; <i class="fas fa-map-marker-alt"></i> {{ user.district|title if user.district else 'Not specified' }}</p>
+        </div>
+        {% if user.skills %}
+        <div class="skills-wrap">
+            {% if user.skills is iterable and user.skills is not string %}
+                {% for skill in user.skills[:6] %}<span class="skill-tag">{{ skill|title }}</span>{% endfor %}
+                {% if user.skills|length > 6 %}<span class="skill-tag">+{{ user.skills|length - 6 }}</span>{% endif %}
+            {% else %}
+                {% for skill in user.skills.split(',')[:6] %}<span class="skill-tag">{{ skill.strip()|title }}</span>{% endfor %}
             {% endif %}
-        {% endwith %}
+        </div>
+        {% endif %}
+    </div>
+</div>
 
-        <!-- USER PROFILE SECTION -->
-        <div class="profile-section">
-            <div class="profile-header">
-                <div class="user-avatar">
-                    {{ user_initials }}
+<!-- FILTER TABS -->
+{% set live_count = live_internships|length %}
+{% set ai_count = recommendations|length %}
+{% set ns = namespace(govt_count=0, private_count=0) %}
+{% for r in recommendations %}
+    {% if r.type == 'government' %}{% set ns.govt_count = ns.govt_count + 1 %}{% endif %}
+    {% if r.type == 'private-based' %}{% set ns.private_count = ns.private_count + 1 %}{% endif %}
+{% endfor %}
+
+<div class="tabs-wrap">
+    <div class="tabs-inner">
+        <button class="tab-btn active" data-filter="all" onclick="filterCards(this,'all')">
+            <i class="fas fa-list"></i> All
+            <span class="tab-count">{{ live_count + ai_count }}</span>
+        </button>
+        <button class="tab-btn live" data-filter="live" onclick="filterCards(this,'live')">
+            <i class="fas fa-circle" style="color:#22c55e;font-size:.55rem;"></i> Live Internships
+            <span class="tab-count">{{ live_count }}</span>
+        </button>
+        <button class="tab-btn govt-tab" data-filter="government" onclick="filterCards(this,'government')">
+            <i class="fas fa-university"></i> Government
+            <span class="tab-count">{{ ns.govt_count }}</span>
+        </button>
+        <button class="tab-btn private-tab" data-filter="private-based" onclick="filterCards(this,'private-based')">
+            <i class="fas fa-building"></i> Private
+            <span class="tab-count">{{ ns.private_count }}</span>
+        </button>
+        <button class="refresh-btn" id="refreshBtn" onclick="generateAI()">
+            <i class="fas fa-sync-alt" id="refresh-icon"></i> Refresh AI
+        </button>
+    </div>
+</div>
+
+<!-- ── FLASH MESSAGES ── -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div style="max-width:960px;margin:12px auto;padding:0 20px;">
+    {% for category, message in messages %}
+    <div style="display:flex;align-items:center;gap:8px;padding:12px 18px;border-radius:10px;margin-bottom:8px;
+                background:{% if category=='error' %}#fee2e2;color:#991b1b{% elif category=='warning' %}#fef3c7;color:#92400e{% else %}#dcfce7;color:#166534{% endif %}">
+        <i class="fas fa-info-circle"></i> {{ message }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+<!-- CONTENT -->
+<div class="content-wrap">
+
+    <!-- ── SECTION A: LIVE DB INTERNSHIPS ── -->
+    {% if live_internships %}
+    <div class="section-header" id="section-live">
+        <h2><i class="fas fa-circle" style="color:#22c55e;font-size:.75rem;"></i> Live Opportunities</h2>
+        <span class="section-badge badge-live">Real Company Posts</span>
+        <span class="section-sub">Apply directly → instantly tracked</span>
+    </div>
+    <div class="cards-grid" id="live-grid">
+        {% for internship in live_internships %}
+        {% set company = internship.get('companies') or {} %}
+        {% set already_applied = internship.id in applied_ids %}
+        {% set app_status = application_statuses.get(internship.id, '') %}
+        <div class="card card-live" data-filter="live">
+            <div class="card-head">
+                <div class="card-company-row">
+                    <div class="co-avatar co-avatar-live">{{ (company.get('company_name') or 'C')[0]|upper }}</div>
+                    <div>
+                        <div class="co-name">{{ company.get('company_name') or 'Company' }}</div>
+                        <div class="co-sub">{{ company.get('industry') or '' }}{% if company.get('city') %} · {{ company.city }}{% endif %}</div>
+                    </div>
                 </div>
-                <div class="profile-info">
-                    <h3>{{ user_name }}</h3>
-                    <p><i class="fas fa-envelope"></i> {{ user_email }}</p>
-                    <p><i class="fas fa-graduation-cap"></i> {{ user.qualification|title if user.qualification else 'Not specified' }}</p>
-                    <p><i class="fas fa-map-marker-alt"></i> {{ user.district|title if user.district else 'Not specified' }}</p>
+                <div class="card-title">{{ internship.title }}</div>
+                <div class="card-badges">
+                    <span class="badge b-live"><i class="fas fa-circle" style="font-size:.5rem;"></i> Live Posted</span>
+                    {% if internship.work_type == 'remote' %}<span class="badge b-remote"><i class="fas fa-wifi"></i> Remote</span>
+                    {% elif internship.work_type == 'hybrid' %}<span class="badge b-hybrid"><i class="fas fa-random"></i> Hybrid</span>
+                    {% else %}<span class="badge b-onsite"><i class="fas fa-building"></i> Onsite</span>{% endif %}
                 </div>
             </div>
-            
-            <div class="skills-display">
-                <h4 style="color: var(--dark-color); margin-bottom: 10px;">
-                    <i class="fas fa-cogs"></i> Your Skills
-                </h4>
-                <p style="color: #666; font-size: 0.9rem; margin-bottom: 10px;">
-                    🎯 Recommendations are matched against these skills with government priority
-                </p>
-                <div class="skills-list">
-                    {% if user.skills %}
-                        <!-- 🔧 FIXED: Handle skills as list instead of splitting -->
-                        {% if user.skills is iterable and user.skills is not string %}
-                            {% for skill in user.skills %}
-                                <span class="skill-tag">{{ skill|title }}</span>
-                            {% endfor %}
-                        {% else %}
-                            {% for skill in user.skills.split(',') %}
-                                <span class="skill-tag">{{ skill.strip()|title }}</span>
-                            {% endfor %}
-                        {% endif %}
-                    {% else %}
-                        <span class="skill-tag" style="background: #95a5a6;">No skills specified</span>
+            <div class="card-body">
+                <div class="meta-grid">
+                    <div class="meta-item"><i class="fas fa-map-marker-alt"></i><strong>{{ internship.location or 'TBD' }}</strong></div>
+                    <div class="meta-item"><i class="fas fa-clock"></i><strong>{{ internship.duration or 'N/A' }}</strong></div>
+                    {% if internship.get('openings') %}
+                    <div class="meta-item"><i class="fas fa-users"></i><strong>{{ internship.openings }} Opening{{ 's' if internship.openings != 1 }}</strong></div>
+                    {% endif %}
+                    {% if internship.get('application_deadline') %}
+                    <div class="meta-item"><i class="fas fa-calendar-times"></i><strong>{{ internship.application_deadline[:10] }}</strong></div>
                     {% endif %}
                 </div>
+                {% if internship.get('description') %}
+                <div class="card-desc">{{ internship.description }}</div>
+                {% endif %}
+                {% if internship.requirements %}
+                <div class="skills-chips">
+                    {% for skill in internship.requirements[:4] %}<span class="skill-chip">{{ skill }}</span>{% endfor %}
+                    {% if internship.requirements|length > 4 %}<span class="skill-chip skill-chip-more">+{{ internship.requirements|length - 4 }}</span>{% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-foot">
+                <div class="stipend">
+                    {% if internship.get('stipend_amount') %}₹{{ '{:,.0f}'.format(internship.stipend_amount) }}<small>/{{ internship.stipend_frequency or 'month' }}</small>
+                    {% else %}<span style="font-size:.85rem;font-weight:500;color:var(--muted);">Negotiable</span>{% endif %}
+                </div>
+                {% if already_applied %}
+                    {% set sc = 's-' ~ app_status %}
+                    <span class="applied-badge {{ sc }}"><i class="fas fa-check-circle"></i> {{ app_status.replace('_',' ').title() if app_status else 'Applied' }}</span>
+                {% else %}
+                    <button class="btn-apply btn-apply-primary" onclick="applyNow({{ internship.id }},this,'{{ internship.title|e }}')">
+                        <i class="fas fa-paper-plane"></i> Apply Now
+                    </button>
+                {% endif %}
             </div>
         </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 
-        <!-- 🔧 NEW: FILTER TABS SECTION -->
-        <div class="filter-tabs">
-            <div class="tabs-header">
-                <h2 class="tabs-title">
-                    <i class="fas fa-filter"></i>
-                    Filter Recommendations
-                </h2>
-                <button id="refreshRecommendations" class="refresh-btn">
-                    <i class="fas fa-sync-alt"></i>
-                    <span>Generate New</span>
-                </button>
-            </div>
-            
-            <div class="tab-buttons">
-                <button class="tab-btn active all" data-filter="all">
-                    <i class="fas fa-list"></i>
-                    All Internships
-                    <span class="tab-count" id="allCount">{{ recommendations|length }}</span>
-                </button>
-                <button class="tab-btn government" data-filter="government">
-                    <i class="fas fa-university"></i>
-                    Government
-                    <span class="tab-count" id="govCount">{{ recommendations|selectattr("type", "equalto", "government")|list|length }}</span>
-                </button>
-                <button class="tab-btn private" data-filter="private-based">
-                    <i class="fas fa-building"></i>
-                    Private-Based
-                    <span class="tab-count" id="privateCount">{{ recommendations|selectattr("type", "equalto", "private-based")|list|length }}</span>
-                </button>
-            </div>
-
-            <div id="loadingSpinner" class="loading">
-                <i class="fas fa-spinner fa-spin fa-2x"></i>
-                <p>Generating personalized recommendations...</p>
-            </div>
-        </div>
-
-        <!-- RECOMMENDATIONS CONTAINER -->
-        <div class="recommendations-container">
-            <div class="recommendations-grid" id="recommendationsContainer">
-                {% for recommendation in recommendations %}
-                <div class="recommendation-card {{ 'government-card' if recommendation.type == 'government' else 'private-card' }}" 
-                     data-type="{{ recommendation.type }}">
-                    <div class="card-header">
-                        <div class="company-info">
-                            <h4>{{ recommendation.company }}</h4>
-                            <div class="job-title">{{ recommendation.title }}</div>
-                        </div>
-                        <span class="type-badge {{ recommendation.type }}">
-                            {% if recommendation.type == 'government' %}
-                                <i class="fas fa-university"></i> Government
-                            {% else %}
-                                <i class="fas fa-building"></i> Private-Based
-                            {% endif %}
-                        </span>
+    <!-- ── SECTION B: AI / HARDCODED SUGGESTIONS ── -->
+    {% if recommendations %}
+    <div class="section-header" id="section-ai">
+        <h2><i class="fas fa-robot"></i> AI Suggestions</h2>
+        <span class="section-badge badge-ai">Skill-Matched</span>
+        <span class="section-sub">Based on your profile</span>
+    </div>
+    <div id="ai-loading" style="display:none;text-align:center;padding:30px;">
+        <i class="fas fa-spinner fa-spin fa-2x" style="color:var(--primary);"></i>
+        <p style="margin-top:10px;color:var(--muted);">Generating personalized suggestions…</p>
+    </div>
+    <div class="cards-grid" id="ai-grid">
+        {% for rec in recommendations %}
+        <div class="card {{ 'card-govt' if rec.type == 'government' else 'card-private' }}" data-filter="{{ rec.type }}">
+            <div class="card-head">
+                <div class="card-company-row">
+                    <div class="co-avatar {{ 'co-avatar-govt' if rec.type == 'government' else 'co-avatar-private' }}">
+                        {{ (rec.company or 'C')[0]|upper }}
                     </div>
-
-                    <div class="card-content">
-                        <div class="info-row">
-                            <span class="info-label"><i class="fas fa-industry"></i> Sector:</span>
-                            <span class="info-value">{{ recommendation.sector }}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label"><i class="fas fa-clock"></i> Duration:</span>
-                            <span class="info-value">{{ recommendation.duration }}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label"><i class="fas fa-map-marker-alt"></i> Location:</span>
-                            <span class="info-value">{{ recommendation.location }}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label"><i class="fas fa-rupee-sign"></i> Stipend:</span>
-                            <span class="info-value" style="color: var(--success-color); font-weight: 600;">
-                                {{ recommendation.stipend }}
-                            </span>
-                        </div>
-
-                        <div class="description">
-                            {{ recommendation.description }}
-                        </div>
-
-                        {% if recommendation.skills %}
-                        <div class="skills-match">
-                            <!-- 🔧 NEW: CIRCULAR SKILL MATCH INDICATOR -->
-                            <div class="skill-match-circle">
-                                <div class="circle-bg" style="--percentage: {{ recommendation.skill_match_score or 75 }}">
-                                    <div class="circle-inner">
-                                        <div class="match-percentage">{{ recommendation.skill_match_score or 75 }}%</div>
-                                        <div class="match-label">Match</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="skills-info">
-                                <div style="margin-bottom: 8px;">
-                                    <strong><i class="fas fa-tools"></i> Required Skills:</strong>
-                                </div>
-                                <div class="required-skills">
-                                    {% for skill in recommendation.skills %}
-                                        <span class="skill-chip">{{ skill }}</span>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %}
+                    <div>
+                        <div class="co-name">{{ rec.company }}</div>
+                        <div class="co-sub">{{ rec.sector or '' }}</div>
                     </div>
                 </div>
-                {% endfor %}
+                <div class="card-title">{{ rec.title }}</div>
+                <div class="card-badges">
+                    <span class="badge b-ai"><i class="fas fa-robot"></i> AI Suggested</span>
+                    {% if rec.type == 'government' %}<span class="badge b-govt"><i class="fas fa-university"></i> Government</span>
+                    {% else %}<span class="badge b-private"><i class="fas fa-building"></i> Private</span>{% endif %}
+                </div>
             </div>
-
-            <!-- Empty state for when no recommendations match filter -->
-            <div class="empty-state" id="emptyState" style="display: none;">
-                <i class="fas fa-search"></i>
-                <h3>No Recommendations Found</h3>
-                <p>No internships match your current filter. Try selecting a different category or generate fresh recommendations.</p>
+            <div class="card-body">
+                <div class="meta-grid">
+                    <div class="meta-item"><i class="fas fa-map-marker-alt"></i><strong>{{ rec.location or 'Pan India' }}</strong></div>
+                    <div class="meta-item"><i class="fas fa-clock"></i><strong>{{ rec.duration or '3 months' }}</strong></div>
+                </div>
+                {% if rec.get('description') %}
+                <div class="card-desc">{{ rec.description }}</div>
+                {% endif %}
+                {% if rec.skills %}
+                <div class="skills-chips">
+                    {% for skill in rec.skills[:4] %}<span class="skill-chip">{{ skill }}</span>{% endfor %}
+                    {% if rec.skills|length > 4 %}<span class="skill-chip skill-chip-more">+{{ rec.skills|length - 4 }}</span>{% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-foot">
+                <div class="stipend" style="color:var(--success);">{{ rec.stipend or 'See details' }}</div>
+                {% if rec.get('skill_match_score') %}
+                <span class="skill-match"><i class="fas fa-chart-bar"></i> {{ rec.skill_match_score }}% match</span>
+                {% endif %}
             </div>
         </div>
+        {% endfor %}
     </div>
+    {% endif %}
 
-    <script src="{{ url_for('static', filename='js/recommendations.js') }}"></script>
+    <!-- Empty state when nothing to show -->
+    {% if not live_internships and not recommendations %}
+    <div class="empty-state">
+        <i class="fas fa-search"></i>
+        <h3>No recommendations available</h3>
+        <p style="color:var(--muted);margin-top:8px;">Complete your profile or check back when companies post new internships.</p>
+    </div>
+    {% endif %}
+
+    <div id="no-filter-results" class="empty-state" style="display:none;">
+        <i class="fas fa-filter"></i>
+        <h3>No internships match this filter</h3>
+        <p style="color:var(--muted);margin-top:8px;">Try selecting a different tab.</p>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = type; t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, 3500);
+}
+
+async function applyNow(id, btn, title) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting…';
+    try {
+        const res = await fetch(`/api/internships/${id}/apply`, { method:'POST', headers:{'Content-Type':'application/json'} });
+        const data = await res.json();
+        if (data.success) {
+            btn.outerHTML = `<span class="applied-badge s-pending"><i class="fas fa-check-circle"></i> Pending Review</span>`;
+            showToast(`✅ Applied for "${title}" successfully!`, 'success');
+        } else if (data.already_applied) {
+            showToast(data.message, 'info');
+            btn.outerHTML = `<span class="applied-badge s-pending"><i class="fas fa-check-circle"></i> Already Applied</span>`;
+        } else {
+            showToast(data.message || 'Failed. Please try again.', 'error');
+            btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Apply Now';
+        }
+    } catch(e) {
+        showToast('Network error. Please try again.', 'error');
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Apply Now';
+    }
+}
+
+function filterCards(el, filter) {
+    // Update active tab
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+
+    const liveGrid = document.getElementById('live-grid');
+    const aiGrid = document.getElementById('ai-grid');
+    const sectionLive = document.getElementById('section-live');
+    const sectionAI = document.getElementById('section-ai');
+    let visible = 0;
+
+    // Live cards
+    if (liveGrid) {
+        const liveCards = liveGrid.querySelectorAll('.card');
+        const showLive = filter === 'all' || filter === 'live';
+        liveCards.forEach(c => {
+            const show = showLive;
+            c.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+        if (sectionLive) sectionLive.style.display = showLive && liveCards.length ? '' : 'none';
+    }
+
+    // AI cards
+    if (aiGrid) {
+        const aiCards = aiGrid.querySelectorAll('.card');
+        const showAI = filter === 'all' || filter === 'government' || filter === 'private-based';
+        aiCards.forEach(c => {
+            const matchType = filter === 'all' || c.dataset.filter === filter;
+            const show = showAI && matchType;
+            c.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+        if (sectionAI) sectionAI.style.display = (showAI && aiCards.length) ? '' : 'none';
+    }
+
+    document.getElementById('no-filter-results').style.display = visible === 0 ? 'block' : 'none';
+}
+
+async function generateAI() {
+    const icon = document.getElementById('refresh-icon');
+    icon.classList.add('fa-spin');
+    document.getElementById('ai-loading').style.display = 'block';
+    try {
+        const res = await fetch('/api/generate-ai-recommendations');
+        const data = await res.json();
+        if (data.success) {
+            showToast('✅ AI recommendations refreshed!', 'success');
+            setTimeout(() => location.reload(), 800);
+        } else {
+            showToast('Could not refresh recommendations.', 'error');
+        }
+    } catch(e) {
+        showToast('Network error.', 'error');
+    } finally {
+        icon.classList.remove('fa-spin');
+        document.getElementById('ai-loading').style.display = 'none';
+    }
+}
+</script>
 </body>
 </html>
