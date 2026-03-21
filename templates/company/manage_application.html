@@ -730,6 +730,24 @@
             background: #ffebee;
             color: var(--danger);
         }
+
+        .status-interview_scheduled {
+            background: #fce7f3;
+            color: #9d174d;
+        }
+
+        .interview-brief {
+            margin: 0.75rem 0;
+            padding: 0.75rem;
+            border-radius: 8px;
+            border: 1px solid #fbcfe8;
+            background: #fff1f7;
+            color: #6b214f;
+            font-size: 0.85rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 6px 10px;
+        }
         
         .candidate-match {
             display: flex;
@@ -1201,6 +1219,16 @@
                                         {% endif %}
                                     {% endif %}
                                 </div>
+
+                                {% set interview = candidate.get('interview_details') or {} %}
+                                {% if interview.get('scheduled') %}
+                                <div class="interview-brief">
+                                    <div><strong>Slot:</strong> {{ (interview.get('date') or '')[:16].replace('T', ' ') or 'TBD' }}</div>
+                                    <div><strong>Interviewer:</strong> {{ interview.get('interviewer_role', 'technical').replace('_', ' ').title() }}</div>
+                                    <div><strong>Mode:</strong> {{ interview.get('communication_mode', 'video_call').replace('_', ' ').title() }}</div>
+                                    <div><strong>Candidate:</strong> {{ 'Confirmed' if interview.get('candidate_confirmed') else 'Pending' }}</div>
+                                </div>
+                                {% endif %}
                             </div>
                             
                             <div class="candidate-actions">
@@ -1240,6 +1268,63 @@
                         </div>
                     {% endif %}
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="interview-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Schedule Interview</h3>
+                <button class="modal-close" onclick="closeInterviewModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="interview-application-id">
+                <div class="form-group">
+                    <label class="form-label">Date and Time</label>
+                    <input type="datetime-local" class="form-control" id="interview-date" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Interviewer Type</label>
+                    <select class="form-control" id="interviewer-role">
+                        <option value="technical">Technical Interviewer</option>
+                        <option value="non_technical">Non-Technical Interviewer</option>
+                        <option value="hr">HR Interviewer</option>
+                        <option value="managerial">Managerial Interviewer</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Interviewer Name</label>
+                    <input type="text" class="form-control" id="interviewer-name" placeholder="Ex: Rahul Sharma">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Interviewer Email</label>
+                    <input type="email" class="form-control" id="interviewer-email" placeholder="Ex: interviewer@company.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Communication Mode</label>
+                    <select class="form-control" id="communication-mode" onchange="toggleMeetingLinkRequirement()">
+                        <option value="video_call">Video Call</option>
+                        <option value="phone_call">Phone Call</option>
+                        <option value="in_person">In Person</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Meeting Link (for video)</label>
+                    <input type="url" class="form-control" id="meeting-link" placeholder="https://meet.google.com/...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Duration (minutes)</label>
+                    <input type="number" class="form-control" id="duration-minutes" min="10" max="180" value="30">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Instructions for Candidate</label>
+                    <textarea class="form-control" id="interview-note" rows="3" placeholder="Share interview agenda or preparation points"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeInterviewModal()">Cancel</button>
+                <button class="btn btn-success" onclick="submitInterviewSchedule()">Schedule</button>
             </div>
         </div>
     </div>
@@ -1368,9 +1453,76 @@
 
         // Function to schedule interview
         function scheduleInterview(applicationId) {
-            const interviewDate = prompt('Enter interview date and time (YYYY-MM-DD HH:MM):');
-            if (interviewDate) {
-                updateApplicationStatusWithNotes(applicationId, 'interview_scheduled', `Interview scheduled for ${interviewDate}`);
+            document.getElementById('interview-application-id').value = applicationId;
+            document.getElementById('interview-date').value = '';
+            document.getElementById('interviewer-role').value = 'technical';
+            document.getElementById('interviewer-name').value = '';
+            document.getElementById('interviewer-email').value = '';
+            document.getElementById('communication-mode').value = 'video_call';
+            document.getElementById('meeting-link').value = '';
+            document.getElementById('duration-minutes').value = 30;
+            document.getElementById('interview-note').value = '';
+            document.getElementById('interview-modal').classList.add('active');
+            toggleMeetingLinkRequirement();
+        }
+
+        function closeInterviewModal() {
+            document.getElementById('interview-modal').classList.remove('active');
+        }
+
+        function toggleMeetingLinkRequirement() {
+            const mode = document.getElementById('communication-mode').value;
+            const linkInput = document.getElementById('meeting-link');
+            linkInput.required = mode === 'video_call';
+        }
+
+        async function submitInterviewSchedule() {
+            const applicationId = document.getElementById('interview-application-id').value;
+            const interviewDate = document.getElementById('interview-date').value;
+            const interviewerRole = document.getElementById('interviewer-role').value;
+            const interviewerName = document.getElementById('interviewer-name').value.trim();
+            const interviewerEmail = document.getElementById('interviewer-email').value.trim();
+            const communicationMode = document.getElementById('communication-mode').value;
+            const meetingLink = document.getElementById('meeting-link').value.trim();
+            const durationMinutes = document.getElementById('duration-minutes').value;
+            const interviewNotes = document.getElementById('interview-note').value.trim();
+
+            if (!interviewDate) {
+                showNotification('Please select interview date and time', 'warning');
+                return;
+            }
+            if (communicationMode === 'video_call' && !meetingLink) {
+                showNotification('Meeting link is required for video interviews', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/company/applications/${applicationId}/schedule-interview`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        interview_date: interviewDate,
+                        interviewer_role: interviewerRole,
+                        interviewer_name: interviewerName,
+                        interviewer_email: interviewerEmail,
+                        communication_mode: communicationMode,
+                        meeting_link: meetingLink,
+                        duration_minutes: Number(durationMinutes || 30),
+                        interview_type: communicationMode === 'video_call' ? 'video' : (communicationMode === 'phone_call' ? 'phone' : 'offline'),
+                        interview_notes_text: interviewNotes
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    closeInterviewModal();
+                    showNotification(result.message, 'success');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    showNotification(result.message || 'Failed to schedule interview', 'error');
+                }
+            } catch (error) {
+                showNotification('Network error. Please try again.', 'error');
             }
         }
 

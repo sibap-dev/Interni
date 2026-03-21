@@ -177,6 +177,46 @@
         .status-selected    { background: #d1fae5; color: #065f46; }
         .status-new         { background: #fef9c3; color: #854d0e; }
 
+        .interview-panel {
+            margin: 0 22px 18px;
+            border: 1px solid #fbcfe8;
+            background: #fff1f7;
+            border-radius: 12px;
+            padding: 14px;
+        }
+        .interview-panel h4 {
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            color: #9d174d;
+        }
+        .interview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 8px 12px;
+            margin-bottom: 10px;
+        }
+        .interview-chip {
+            font-size: 0.8rem;
+            color: #6b214f;
+        }
+        .interview-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .tiny-btn {
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .tiny-btn.primary { background: #9d174d; color: #fff; }
+        .tiny-btn.ok { background: #059669; color: #fff; }
+        .tiny-btn.no { background: #dc2626; color: #fff; }
+        .tiny-btn.link { background: #1d4ed8; color: #fff; text-decoration: none; display: inline-flex; align-items: center; }
+
         /* Meta strip */
         .app-card-meta {
             display: flex;
@@ -360,6 +400,7 @@
     {% set internship = app.get('internships') or {} %}
     {% set company = internship.get('companies') or {} %}
     {% set status = app.get('status', 'pending') %}
+    {% set interview = app.get('interview_details') or {} %}
     {% set status_class = 'status-' ~ status.replace(' ','_') %}
 
     {% set STEPS = [('pending','Applied'),('under_review','Under Review'),('shortlisted','Shortlisted'),('interview_scheduled','Interview'),('selected','Selected')] %}
@@ -426,6 +467,39 @@
             {% endif %}
         </div>
 
+        {% if interview.get('scheduled') %}
+        <div class="interview-panel">
+            <h4><i class="fas fa-headset"></i> Interview Communication Details</h4>
+            <div class="interview-grid">
+                <div class="interview-chip"><strong>Date:</strong> {{ (interview.get('date') or '')[:16].replace('T', ' ') or 'TBD' }}</div>
+                <div class="interview-chip"><strong>Interviewer:</strong> {{ interview.get('interviewer_role','technical').replace('_',' ').title() }}</div>
+                <div class="interview-chip"><strong>Mode:</strong> {{ interview.get('communication_mode','video_call').replace('_',' ').title() }}</div>
+                <div class="interview-chip"><strong>Duration:</strong> {{ interview.get('duration_minutes', 30) }} mins</div>
+            </div>
+            {% if interview.get('interview_notes_text') %}
+            <p style="font-size:0.8rem;color:#6b214f;margin-bottom:10px;">{{ interview.get('interview_notes_text') }}</p>
+            {% endif %}
+            <div class="interview-actions">
+                {% if interview.get('join_url') %}
+                <a href="{{ interview.get('join_url') }}" class="tiny-btn link"><i class="fas fa-video"></i>&nbsp;Join In-App Interview</a>
+                {% elif interview.get('meeting_link') %}
+                <a href="{{ interview.get('meeting_link') }}" target="_blank" class="tiny-btn link"><i class="fas fa-video"></i>&nbsp;Join Interview</a>
+                {% endif %}
+                {% if interview.get('interviewer_email') %}
+                <a href="mailto:{{ interview.get('interviewer_email') }}" class="tiny-btn link"><i class="fas fa-envelope"></i>&nbsp;Contact Interviewer</a>
+                {% endif %}
+                {% if status == 'interview_scheduled' and interview.get('candidate_response') == 'pending' %}
+                <button class="tiny-btn ok" onclick="respondInterview('{{ app.get('id') }}', 'confirmed')">Confirm</button>
+                <button class="tiny-btn no" onclick="respondInterview('{{ app.get('id') }}', 'declined')">Decline</button>
+                {% elif status == 'interview_scheduled' and interview.get('candidate_response') == 'confirmed' %}
+                <button class="tiny-btn primary" disabled>Confirmed</button>
+                {% elif status == 'interview_scheduled' and interview.get('candidate_response') == 'declined' %}
+                <button class="tiny-btn no" disabled>Declined</button>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
         {% if status != 'rejected' %}
         <div class="progress-bar-wrap">
             <div class="progress-steps">
@@ -462,6 +536,30 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+async function respondInterview(applicationId, responseType) {
+    const note = prompt(responseType === 'confirmed'
+        ? 'Optional message to company (for example: I will join 5 mins early):'
+        : 'Optional reason for decline/reschedule request:') || '';
+
+    try {
+        const response = await fetch(`/api/applications/${applicationId}/interview-response`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ response: responseType, note })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            alert(result.message || 'Unable to save interview response');
+            return;
+        }
+        window.location.reload();
+    } catch (err) {
+        alert('Network error while responding to interview');
+    }
+}
+</script>
 
 </body>
 </html>

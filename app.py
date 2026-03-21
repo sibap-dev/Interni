@@ -13,6 +13,7 @@ import google.generativeai as genai
 import os
 import json
 import random
+import uuid
 from dotenv import load_dotenv
 # Language detection for multilingual support
 try:
@@ -516,6 +517,12 @@ def update_user_profile(user_id, profile_data):
 # 🔧 NEW: Helper function to set up user session after signup/login
 def setup_user_session(user, remember=False):
     """Set up user session data after successful login/signup"""
+    # Ensure a clean user session when switching from a company account.
+    session.pop('company_id', None)
+    session.pop('company_email', None)
+    session.pop('company_name', None)
+    session.pop('is_company', None)
+
     try:
         full_name = user['full_name'] if user['full_name'] and user['full_name'] != 'User' else get_user_display_name(None, user['email'])
     except (KeyError, TypeError):
@@ -527,6 +534,8 @@ def setup_user_session(user, remember=False):
     session['user_email'] = user['email']
     session['user_initials'] = get_user_initials(full_name)
     session['logged_in'] = True
+    session['user_type'] = 'candidate'
+    session['auth_scope'] = 'candidate'
     
     # Update last login
     update_last_login(user['id'])
@@ -3120,12 +3129,20 @@ def get_company_by_id(company_id):
 
 def setup_company_session(company, remember=False):
     """Set up company session after successful login"""
+    # Ensure a clean company session when switching from a candidate account.
+    session.pop('user_id', None)
+    session.pop('user_name', None)
+    session.pop('user_email', None)
+    session.pop('user_initials', None)
+    session.pop('logged_in', None)
+
     session.permanent = remember
     session['company_id'] = company['id']
     session['company_email'] = company['email']
     session['company_name'] = company['company_name']
     session['user_type'] = 'company'
     session['is_company'] = True
+    session['auth_scope'] = 'company'
     
     # Update last login
     try:
@@ -3553,8 +3570,14 @@ def company_applications():
         internships_response = supabase.table('internships').select('id').eq('company_id', company_id).execute()
         internship_ids = [i['id'] for i in internships_response.data] if internships_response.data else []
         
+        all_candidates = []
+
         # Build query for applications - query through internship_id
         if internship_ids:
+            base_query = supabase.table('applications').select('*, users(*), internships(*)').in_('internship_id', internship_ids)
+            all_response = base_query.order('applied_date', desc=True).execute()
+            all_candidates = all_response.data if all_response.data else []
+
             query = supabase.table('applications').select('*, users(*), internships(*)').in_('internship_id', internship_ids)
             
             if status_filter != 'all':
@@ -3566,15 +3589,24 @@ def company_applications():
             candidates = applications_response.data if applications_response.data else []
         else:
             candidates = []
+
+        for candidate in candidates:
+            candidate['interview_details'] = _build_interview_details(candidate)
         
         # Calculate status counts from the applications data
         status_counts = {
-            'all': len(candidates),
-            'pending': len([c for c in candidates if c.get('status') == 'pending']),
-            'reviewed': len([c for c in candidates if c.get('status') == 'reviewed']),
-            'shortlisted': len([c for c in candidates if c.get('status') == 'shortlisted']),
-            'rejected': len([c for c in candidates if c.get('status') == 'rejected']),
-            'accepted': len([c for c in candidates if c.get('status') == 'accepted'])
+            'all': len(all_candidates),
+            'new': len([c for c in all_candidates if c.get('status') == 'new']),
+            'pending': len([c for c in all_candidates if c.get('status') == 'pending']),
+            'under_review': len([c for c in all_candidates if c.get('status') == 'under_review']),
+            'reviewed': len([c for c in all_candidates if c.get('status') == 'reviewed']),
+            'shortlisted': len([c for c in all_candidates if c.get('status') == 'shortlisted']),
+            'interview_scheduled': len([c for c in all_candidates if c.get('status') == 'interview_scheduled']),
+            'interview_completed': len([c for c in all_candidates if c.get('status') == 'interview_completed']),
+            'waitlisted': len([c for c in all_candidates if c.get('status') == 'waitlisted']),
+            'rejected': len([c for c in all_candidates if c.get('status') == 'rejected']),
+            'selected': len([c for c in all_candidates if c.get('status') == 'selected']),
+            'accepted': len([c for c in all_candidates if c.get('status') == 'accepted'])
         }
         
         # Get internships for filter dropdown
@@ -3663,7 +3695,7 @@ def company_candidates():
         # Get company stats
         stats = get_company_stats(company_id)
         
-        # Try to use the new helper function first
+        # Try to use the helper function first, then fallback to direct query.
         applications = []
         try:
             applications_response = supabase.rpc('get_company_applications', {'company_id_param': company_id}).execute()
@@ -3686,11 +3718,86 @@ def company_candidates():
                     applications = applications_response.data if applications_response.data else []
                 except Exception as e:
                     print(f"Error getting applications: {e}")
+
+        normalized_applications = []
+        for app_row in applications:
+            user_row = app_row.get('users') if isinstance(app_row.get('users'), dict) else {}
+            internship_row = app_row.get('internships') if isinstance(app_row.get('internships'), dict) else {}
+
+            application_id = app_row.get('id') or app_row.get('application_id')
+            app_row_for_interview = dict(app_row or {})
+            if application_id and not app_row_for_interview.get('id'):
+                app_row_for_interview['id'] = application_id
+            interview_details = _build_interview_details(app_row_for_interview)
+
+            if not interview_details.get('join_url') and application_id:
+                payload = _parse_interview_notes_payload(app_row.get('interview_notes'))
+                room_id = payload.get('interview_room_id')
+                if room_id:
+                    try:
+                        interview_details['join_url'] = url_for('interview_room', room_id=room_id, application_id=application_id)
+                    except Exception:
+                        interview_details['join_url'] = ''
+
+            # Handle flattened RPC shapes as well.
+            user_id = (
+                user_row.get('id')
+                or app_row.get('student_id')
+                or app_row.get('user_id')
+                or app_row.get('applicant_id')
+                or app_row.get('candidate_id')
+            )
+            full_name = (
+                user_row.get('full_name')
+                or app_row.get('student_name')
+                or app_row.get('full_name')
+                or app_row.get('candidate_name')
+                or 'Unknown Candidate'
+            )
+            email = user_row.get('email') or app_row.get('student_email') or app_row.get('email') or ''
+            qualification = user_row.get('qualification') or app_row.get('qualification') or ''
+            university = user_row.get('university') or app_row.get('university') or ''
+
+            skills_value = user_row.get('skills') if user_row else app_row.get('skills')
+            if isinstance(skills_value, str):
+                skills = [s.strip() for s in skills_value.split(',') if s.strip()]
+            elif isinstance(skills_value, list):
+                skills = [str(s).strip() for s in skills_value if str(s).strip()]
+            else:
+                skills = []
+
+            normalized_applications.append({
+                'application_id': application_id,
+                'user_id': user_id,
+                'full_name': full_name,
+                'email': email,
+                'qualification': qualification,
+                'university': university,
+                'skills': skills,
+                'status': str(app_row.get('status') or 'pending').strip().lower(),
+                'applied_date': app_row.get('applied_date') or app_row.get('created_at') or '',
+                'match_score': _safe_float(app_row.get('match_score'), 0.0),
+                'internship_title': internship_row.get('title') or app_row.get('internship_title') or 'Internship',
+                'interview_details': interview_details,
+            })
+
+        normalized_applications.sort(key=lambda row: str(row.get('applied_date') or ''), reverse=True)
+
+        status_counts = {
+            'all': len(normalized_applications),
+            'new': len([r for r in normalized_applications if r.get('status') == 'new']),
+            'pending': len([r for r in normalized_applications if r.get('status') == 'pending']),
+            'under_review': len([r for r in normalized_applications if r.get('status') == 'under_review']),
+            'shortlisted': len([r for r in normalized_applications if r.get('status') == 'shortlisted']),
+            'interview_scheduled': len([r for r in normalized_applications if r.get('status') == 'interview_scheduled']),
+            'rejected': len([r for r in normalized_applications if r.get('status') == 'rejected']),
+        }
         
         return render_template('company/candidate.html', 
                              company=company,
                              stats=stats,
-                             applications=applications)
+                             applications=normalized_applications,
+                             status_counts=status_counts)
         
     except Exception as e:
         print(f"Error in company candidates: {e}")
@@ -3889,6 +3996,7 @@ def update_application_status():
         data = request.get_json()
         application_id = data.get('application_id')
         new_status = data.get('status')
+        notes = data.get('notes', '')
         
         if not application_id or not new_status:
             return jsonify({'success': False, 'message': 'Missing application ID or status'}), 400
@@ -3901,8 +4009,37 @@ def update_application_status():
         if not application_response.data:
             return jsonify({'success': False, 'message': 'Application not found'}), 404
         
+        update_data = {
+            'status': new_status,
+            'status_updated_date': datetime.now(timezone.utc).isoformat()
+        }
+        if notes:
+            update_data['company_notes'] = notes
+
+        if new_status in ['interview_scheduled', 'interview_completed']:
+            interview_date = data.get('interview_date')
+            if interview_date:
+                update_data['interview_date'] = interview_date
+            interview_type = data.get('interview_type')
+            if interview_type:
+                update_data['interview_type'] = interview_type
+
+            existing_app = application_response.data[0]
+            interview_payload = _merge_interview_notes_payload(existing_app.get('interview_notes'), {
+                'interviewer_role': data.get('interviewer_role'),
+                'interviewer_name': data.get('interviewer_name'),
+                'interviewer_email': data.get('interviewer_email'),
+                'communication_mode': data.get('communication_mode'),
+                'meeting_link': data.get('meeting_link'),
+                'meeting_id': data.get('meeting_id'),
+                'duration_minutes': data.get('duration_minutes'),
+                'interview_notes_text': data.get('interview_notes_text') or notes,
+                'company_confirmed': True,
+            })
+            update_data['interview_notes'] = json.dumps(interview_payload)
+
         # Update the application status
-        update_response = supabase.table('applications').update({'status': new_status}).eq('id', application_id).execute()
+        update_response = supabase.table('applications').update(update_data).eq('id', application_id).execute()
         
         if update_response.data:
             return jsonify({'success': True, 'message': 'Application status updated successfully'})
@@ -3946,8 +4083,19 @@ def update_application_status_detailed():
             if interview_date:
                 update_data['interview_date'] = interview_date
             update_data['interview_type'] = data.get('interview_type', 'video')
-            if data.get('interview_notes'):
-                update_data['interview_notes'] = data['interview_notes']
+            existing_app = app_response.data[0]
+            interview_payload = _merge_interview_notes_payload(existing_app.get('interview_notes'), {
+                'interviewer_role': data.get('interviewer_role'),
+                'interviewer_name': data.get('interviewer_name'),
+                'interviewer_email': data.get('interviewer_email'),
+                'communication_mode': data.get('communication_mode'),
+                'meeting_link': data.get('meeting_link'),
+                'meeting_id': data.get('meeting_id'),
+                'duration_minutes': data.get('duration_minutes'),
+                'interview_notes_text': data.get('interview_notes') or data.get('interview_notes_text'),
+                'company_confirmed': True,
+            })
+            update_data['interview_notes'] = json.dumps(interview_payload)
         
         response = supabase.table('applications').update(update_data).eq('id', application_id).execute()
         
@@ -3972,6 +4120,581 @@ def update_application_status_detailed():
     except Exception as e:
         print(f"Error updating application status: {e}")
         return jsonify({'success': False, 'message': 'Server error'}), 500
+
+
+@app.route('/api/company/applications/<int:application_id>/schedule-interview', methods=['POST'])
+@company_login_required
+def schedule_application_interview(application_id):
+    """Schedule interview with interviewer role and real communication details."""
+    try:
+        company_id = session.get('company_id')
+        data = request.get_json() or {}
+
+        app_response = (
+            supabase.table('applications')
+            .select('*')
+            .eq('id', application_id)
+            .limit(1)
+            .execute()
+        )
+        if not app_response.data:
+            return jsonify({'success': False, 'message': 'Application not found'}), 404
+
+        existing_row = app_response.data[0]
+        owner_matches = _safe_int(existing_row.get('company_id'), -1) == _safe_int(company_id, -2)
+        if not owner_matches:
+            internship_id = existing_row.get('internship_id')
+            if internship_id:
+                try:
+                    internship_rows = (
+                        supabase.table('internships')
+                        .select('id, company_id')
+                        .eq('id', internship_id)
+                        .eq('company_id', company_id)
+                        .limit(1)
+                        .execute()
+                        .data or []
+                    )
+                    owner_matches = bool(internship_rows)
+                except Exception:
+                    owner_matches = False
+
+        if not owner_matches:
+            return jsonify({'success': False, 'message': 'Application does not belong to your company'}), 403
+
+        interview_date = data.get('interview_date')
+        interviewer_role = str(data.get('interviewer_role') or '').strip().lower()
+        communication_mode = 'in_app'
+
+        if not interview_date:
+            return jsonify({'success': False, 'message': 'Interview date and time is required'}), 400
+        if interviewer_role not in ['technical', 'non_technical', 'hr', 'managerial']:
+            return jsonify({'success': False, 'message': 'Please choose a valid interviewer role'}), 400
+        room_id = f"pmi-{application_id}-{uuid.uuid4().hex[:10]}"
+
+        payload = _merge_interview_notes_payload(existing_row.get('interview_notes'), {
+            'interviewer_role': interviewer_role,
+            'interviewer_name': data.get('interviewer_name'),
+            'interviewer_email': data.get('interviewer_email'),
+            'communication_mode': communication_mode,
+            'meeting_link': '',
+            'interview_room_id': room_id,
+            'interview_room_name': room_id,
+            'meeting_id': data.get('meeting_id'),
+            'duration_minutes': data.get('duration_minutes') or 30,
+            'interview_notes_text': data.get('interview_notes_text'),
+            'company_confirmed': True,
+            'candidate_confirmed': False,
+            'candidate_response': 'pending',
+            'scheduled_at': datetime.now(timezone.utc).isoformat()
+        })
+
+        update_data = {
+            'status': 'interview_scheduled',
+            'status_updated_date': datetime.now(timezone.utc).isoformat(),
+            'interview_date': interview_date,
+            'interview_type': data.get('interview_type') or 'video',
+            'interview_notes': json.dumps(payload)
+        }
+
+        update_variants = [
+            update_data,
+            {
+                'status': 'interview_scheduled',
+                'interview_date': interview_date,
+                'interview_type': data.get('interview_type') or 'video',
+                'interview_notes': json.dumps(payload)
+            },
+            {
+                'status': 'interview_scheduled',
+                'interview_date': interview_date,
+                'interview_notes': json.dumps(payload)
+            },
+            {
+                'status': 'interview_scheduled',
+                'interview_notes': json.dumps(payload)
+            },
+            {
+                'status': 'interview',
+                'interview_notes': json.dumps(payload)
+            },
+        ]
+
+        response = None
+        update_errors = []
+        for variant in update_variants:
+            try:
+                response = supabase.table('applications').update(variant).eq('id', application_id).execute()
+                if response and response.data:
+                    break
+            except Exception as update_err:
+                update_errors.append(str(update_err))
+                continue
+
+        if not response or not response.data:
+            concise = ' | '.join(update_errors[-3:]) if update_errors else 'Unknown update error'
+            return jsonify({'success': False, 'message': f'Failed to schedule interview: {concise[:240]}'}), 400
+
+        # Notify candidate
+        try:
+            student_id = existing_row.get('student_id')
+            if not student_id:
+                for user_col in _candidate_id_column_variants():
+                    if existing_row.get(user_col):
+                        student_id = existing_row.get(user_col)
+                        break
+            notification_data = {
+                'recipient_id': student_id,
+                'recipient_type': 'student',
+                'title': 'Interview Scheduled',
+                'message': 'Your interview is scheduled. Please confirm your availability and join details in My Applications.',
+                'notification_type': 'interview_scheduled',
+                'related_application_id': application_id
+            }
+            supabase.table('notifications').insert(notification_data).execute()
+        except Exception as notif_error:
+            print(f"Interview notification error (non-blocking): {notif_error}")
+
+        return jsonify({'success': True, 'message': 'Interview scheduled successfully'})
+    except Exception as e:
+        print(f"Error scheduling interview: {e}")
+        return jsonify({'success': False, 'message': f'Server error while scheduling interview: {str(e)[:220]}'}), 500
+
+
+@app.route('/api/company/applications/<int:application_id>/interview-room', methods=['GET'])
+@company_login_required
+def get_or_create_interview_room(application_id):
+    """Return interviewer join URL for an in-app interview, generating room id if missing."""
+    try:
+        company_id = session.get('company_id')
+        app_rows = (
+            supabase.table('applications')
+            .select('*')
+            .eq('id', application_id)
+            .limit(1)
+            .execute()
+            .data or []
+        )
+        if not app_rows:
+            return jsonify({'success': False, 'message': 'Application not found'}), 404
+
+        app_row = app_rows[0]
+        owner_matches = _safe_int(app_row.get('company_id'), -1) == _safe_int(company_id, -2)
+        if not owner_matches and app_row.get('internship_id'):
+            internship_rows = (
+                supabase.table('internships')
+                .select('id')
+                .eq('id', app_row.get('internship_id'))
+                .eq('company_id', company_id)
+                .limit(1)
+                .execute()
+                .data or []
+            )
+            owner_matches = bool(internship_rows)
+
+        if not owner_matches:
+            return jsonify({'success': False, 'message': 'Application does not belong to your company'}), 403
+
+        notes_payload = _parse_interview_notes_payload(app_row.get('interview_notes'))
+        room_id = notes_payload.get('interview_room_id')
+        if not room_id:
+            room_id = f"pmi-{application_id}-{uuid.uuid4().hex[:10]}"
+            notes_payload['interview_room_id'] = room_id
+            notes_payload['interview_room_name'] = room_id
+            notes_payload['communication_mode'] = 'in_app'
+            supabase.table('applications').update({'interview_notes': json.dumps(notes_payload)}).eq('id', application_id).execute()
+
+        join_url = url_for('interview_room', room_id=room_id, application_id=application_id, role='company')
+        return jsonify({'success': True, 'room_id': room_id, 'join_url': join_url})
+    except Exception as e:
+        print(f"Error preparing interviewer room link: {e}")
+        return jsonify({'success': False, 'message': f'Failed to open interview room: {str(e)[:220]}'}), 500
+
+
+@app.route('/api/applications/<int:application_id>/interview-response', methods=['POST'])
+@login_required
+def respond_to_interview_schedule(application_id):
+    """Allow candidate to confirm or decline interview schedule."""
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json() or {}
+        response_action = str(data.get('response') or '').strip().lower()
+        response_note = str(data.get('note') or '').strip()
+
+        if response_action not in ['confirmed', 'declined']:
+            return jsonify({'success': False, 'message': 'Invalid response action'}), 400
+
+        app_response = (
+            supabase.table('applications')
+            .select('*')
+            .eq('id', application_id)
+            .limit(1)
+            .execute()
+        )
+        if not app_response.data:
+            return jsonify({'success': False, 'message': 'Application not found'}), 404
+
+        application_row = app_response.data[0]
+        if not _application_candidate_matches(application_row, user_id):
+            return jsonify({'success': False, 'message': 'Unauthorized interview response'}), 403
+        if application_row.get('status') != 'interview_scheduled':
+            return jsonify({'success': False, 'message': 'Interview is not in scheduled state'}), 400
+
+        payload = _merge_interview_notes_payload(application_row.get('interview_notes'), {
+            'candidate_confirmed': response_action == 'confirmed',
+            'candidate_response': response_action,
+            'candidate_response_note': response_note,
+            'candidate_response_at': datetime.now(timezone.utc).isoformat()
+        })
+
+        response = (
+            supabase.table('applications')
+            .update({'interview_notes': json.dumps(payload)})
+            .eq('id', application_id)
+            .execute()
+        )
+        if not response.data:
+            return jsonify({'success': False, 'message': 'Failed to save interview response'}), 400
+
+        # Notify company
+        try:
+            notification_data = {
+                'recipient_id': application_row.get('company_id'),
+                'recipient_type': 'company',
+                'title': 'Interview Response Received',
+                'message': f'Candidate has {response_action} the interview schedule.',
+                'notification_type': 'interview_response',
+                'related_application_id': application_id
+            }
+            supabase.table('notifications').insert(notification_data).execute()
+        except Exception as notif_error:
+            print(f"Interview response notification error (non-blocking): {notif_error}")
+
+        return jsonify({'success': True, 'message': f'Interview {response_action} successfully'})
+    except Exception as e:
+        print(f"Error saving interview response: {e}")
+        return jsonify({'success': False, 'message': 'Server error while saving response'}), 500
+
+
+@app.route('/interview/<room_id>')
+def interview_room(room_id):
+    """In-app interview room for candidate and company participants."""
+    try:
+        application_id = request.args.get('application_id', type=int)
+        if not application_id:
+            flash('Invalid interview room link.', 'error')
+            return redirect(url_for('index'))
+
+        app_rows = (
+            supabase.table('applications')
+            .select('*')
+            .eq('id', application_id)
+            .limit(1)
+            .execute()
+            .data or []
+        )
+        if not app_rows:
+            flash('Interview application not found.', 'error')
+            return redirect(url_for('index'))
+
+        app_row = app_rows[0]
+        interview_payload = _parse_interview_notes_payload(app_row.get('interview_notes'))
+        if str(interview_payload.get('interview_room_id') or '') != str(room_id):
+            flash('Interview room mismatch.', 'error')
+            return redirect(url_for('index'))
+
+        participant_role = None
+        participant_name = None
+        can_view_question_assist = False
+        initial_question_context = {}
+        initial_questions = []
+        is_company_session = bool(session.get('is_company') and session.get('company_id'))
+        is_candidate_session = bool(session.get('logged_in') and session.get('user_id'))
+        auth_scope = str(session.get('auth_scope') or '').strip().lower()
+        requested_role = str(request.args.get('role') or '').strip().lower()
+
+        # Explicit role in URL is honored when authorization succeeds.
+        if requested_role == 'company':
+            if not is_company_session or _safe_int(app_row.get('company_id'), -1) != _safe_int(session.get('company_id'), -2):
+                return jsonify({'success': False, 'message': 'Unauthorized company access'}), 403
+            participant_role = 'company'
+            participant_name = session.get('company_name') or 'Interviewer'
+            can_view_question_assist = True
+        elif requested_role == 'candidate':
+            if not is_candidate_session or not _application_candidate_matches(app_row, session.get('user_id')):
+                return jsonify({'success': False, 'message': 'Unauthorized candidate access'}), 403
+            participant_role = 'candidate'
+            participant_name = session.get('user_name') or 'Candidate'
+        elif auth_scope == 'company' and is_company_session:
+            if _safe_int(app_row.get('company_id'), -1) != _safe_int(session.get('company_id'), -2):
+                return jsonify({'success': False, 'message': 'Unauthorized company access'}), 403
+            participant_role = 'company'
+            participant_name = session.get('company_name') or 'Interviewer'
+            can_view_question_assist = True
+        elif auth_scope == 'candidate' and is_candidate_session:
+            if not _application_candidate_matches(app_row, session.get('user_id')):
+                return jsonify({'success': False, 'message': 'Unauthorized candidate access'}), 403
+            participant_role = 'candidate'
+            participant_name = session.get('user_name') or 'Candidate'
+        elif is_company_session and not is_candidate_session:
+            if _safe_int(app_row.get('company_id'), -1) != _safe_int(session.get('company_id'), -2):
+                return jsonify({'success': False, 'message': 'Unauthorized company access'}), 403
+            participant_role = 'company'
+            participant_name = session.get('company_name') or 'Interviewer'
+            can_view_question_assist = True
+        elif is_candidate_session and not is_company_session:
+            if not _application_candidate_matches(app_row, session.get('user_id')):
+                return jsonify({'success': False, 'message': 'Unauthorized candidate access'}), 403
+            participant_role = 'candidate'
+            participant_name = session.get('user_name') or 'Candidate'
+        else:
+            # Ambiguous mixed session: do not guess role; require explicit role in link.
+            return jsonify({'success': False, 'message': 'Ambiguous session. Please re-open interview from your dashboard.'}), 403
+
+        if participant_role == 'company':
+            # Preload suggestions so interviewer sees questions even if client refresh call fails.
+                try:
+                    notes_payload = _parse_interview_notes_payload(app_row.get('interview_notes'))
+                    interviewer_role = str(notes_payload.get('interviewer_role') or 'technical').strip().lower()
+                    if interviewer_role not in ['technical', 'non_technical', 'hr', 'managerial']:
+                        interviewer_role = 'technical'
+
+                    candidate_id = None
+                    for col in _candidate_id_column_variants():
+                        if app_row.get(col):
+                            candidate_id = app_row.get(col)
+                            break
+
+                    candidate_profile = {}
+                    if candidate_id:
+                        user_rows = (
+                            supabase.table('users')
+                            .select('id, full_name, skills, qualification, course, experience, area_of_interest')
+                            .eq('id', candidate_id)
+                            .limit(1)
+                            .execute()
+                            .data or []
+                        )
+                        candidate_profile = user_rows[0] if user_rows else {}
+
+                    internship_title = 'Internship Role'
+                    if app_row.get('internship_id'):
+                        internship_rows = (
+                            supabase.table('internships')
+                            .select('id, title')
+                            .eq('id', app_row.get('internship_id'))
+                            .limit(1)
+                            .execute()
+                            .data or []
+                        )
+                        if internship_rows:
+                            internship_title = internship_rows[0].get('title') or internship_title
+
+                    candidate_name = candidate_profile.get('full_name') or 'Candidate'
+                    candidate_skills = _to_string_list(candidate_profile.get('skills'))
+                    qualification = candidate_profile.get('qualification') or candidate_profile.get('course') or ''
+
+                    initial_question_context = {
+                        'interviewer_role': interviewer_role,
+                        'candidate_name': candidate_name,
+                        'internship_title': internship_title,
+                        'skills_considered': candidate_skills[:5]
+                    }
+                    initial_questions = _generate_interview_question_suggestions(
+                        interviewer_role=interviewer_role,
+                        candidate_name=candidate_name,
+                        candidate_skills=candidate_skills,
+                        internship_title=internship_title,
+                        qualification=qualification,
+                    )
+                except Exception as preload_err:
+                    print(f"Question preload warning (non-blocking): {preload_err}")
+
+        return render_template(
+            'interview_room.html',
+            room_id=room_id,
+            application_id=application_id,
+            participant_role=participant_role,
+            participant_name=participant_name,
+            interview_date=app_row.get('interview_date'),
+            can_view_question_assist=can_view_question_assist,
+            initial_question_context=initial_question_context,
+            initial_questions=initial_questions
+        )
+    except Exception as e:
+        print(f"Error loading interview room: {e}")
+        flash('Unable to open interview room.', 'error')
+        return redirect(url_for('index'))
+
+
+@app.route('/api/interviews/<int:application_id>/behavior', methods=['POST'])
+def record_interview_behavior(application_id):
+    """Store interview behavior/attention signals during in-app interviews."""
+    try:
+        if not (session.get('logged_in') or (session.get('is_company') and session.get('company_id'))):
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+        app_rows = (
+            supabase.table('applications')
+            .select('*')
+            .eq('id', application_id)
+            .limit(1)
+            .execute()
+            .data or []
+        )
+        if not app_rows:
+            return jsonify({'success': False, 'message': 'Application not found'}), 404
+
+        app_row = app_rows[0]
+        auth_scope = str(session.get('auth_scope') or '').strip().lower()
+
+        if auth_scope == 'company':
+            if not (session.get('is_company') and session.get('company_id')):
+                return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+            if _safe_int(app_row.get('company_id'), -1) != _safe_int(session.get('company_id'), -2):
+                return jsonify({'success': False, 'message': 'Forbidden'}), 403
+            actor_id = session.get('company_id')
+            actor_role = 'company'
+        elif auth_scope == 'candidate':
+            if not (session.get('logged_in') and session.get('user_id')):
+                return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+            if not _application_candidate_matches(app_row, session.get('user_id')):
+                return jsonify({'success': False, 'message': 'Forbidden'}), 403
+            actor_id = session.get('user_id')
+            actor_role = 'candidate'
+        elif session.get('logged_in') and session.get('user_id') and _application_candidate_matches(app_row, session.get('user_id')):
+            actor_id = session.get('user_id')
+            actor_role = 'candidate'
+        elif session.get('is_company') and session.get('company_id') and _safe_int(app_row.get('company_id'), -1) == _safe_int(session.get('company_id'), -2):
+            actor_id = session.get('company_id')
+            actor_role = 'company'
+        else:
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+        payload = request.get_json(silent=True) or {}
+        details = {
+            'room_id': payload.get('room_id'),
+            'face_detected': bool(payload.get('face_detected')),
+            'tab_active': bool(payload.get('tab_active')),
+            'camera_active': bool(payload.get('camera_active')),
+            'metrics': payload.get('metrics') or {},
+            'role': actor_role,
+            'captured_at': datetime.now(timezone.utc).isoformat()
+        }
+
+        log_activity(
+            user_id=actor_id,
+            action_type='interview_behavior_signal',
+            details=details
+        )
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Error recording interview behavior: {e}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+
+@app.route('/api/company/applications/<int:application_id>/interview-question-suggestions', methods=['GET'])
+@company_login_required
+def interview_question_suggestions(application_id):
+    """Provide interviewer question suggestions based on role + candidate profile + internship."""
+    try:
+        company_id = session.get('company_id')
+        requested_role = str(request.args.get('role') or '').strip().lower()
+
+        app_rows = (
+            supabase.table('applications')
+            .select('*')
+            .eq('id', application_id)
+            .limit(1)
+            .execute()
+            .data or []
+        )
+        if not app_rows:
+            return jsonify({'success': False, 'message': 'Application not found'}), 404
+
+        app_row = app_rows[0]
+        owner_matches = _safe_int(app_row.get('company_id'), -1) == _safe_int(company_id, -2)
+        if not owner_matches and app_row.get('internship_id'):
+            internship_rows = (
+                supabase.table('internships')
+                .select('id')
+                .eq('id', app_row.get('internship_id'))
+                .eq('company_id', company_id)
+                .limit(1)
+                .execute()
+                .data or []
+            )
+            owner_matches = bool(internship_rows)
+        if not owner_matches:
+            return jsonify({'success': False, 'message': 'Application does not belong to your company'}), 403
+
+        notes_payload = _parse_interview_notes_payload(app_row.get('interview_notes'))
+        interviewer_role = requested_role or str(notes_payload.get('interviewer_role') or 'technical').strip().lower()
+        if interviewer_role not in ['technical', 'non_technical', 'hr', 'managerial']:
+            interviewer_role = 'technical'
+
+        candidate_id = None
+        for col in _candidate_id_column_variants():
+            if app_row.get(col):
+                candidate_id = app_row.get(col)
+                break
+
+        candidate_profile = {}
+        if candidate_id:
+            try:
+                user_rows = (
+                    supabase.table('users')
+                    .select('id, full_name, skills, qualification, course, experience, area_of_interest')
+                    .eq('id', candidate_id)
+                    .limit(1)
+                    .execute()
+                    .data or []
+                )
+                candidate_profile = user_rows[0] if user_rows else {}
+            except Exception:
+                candidate_profile = {}
+
+        internship_title = 'Internship Role'
+        if app_row.get('internship_id'):
+            try:
+                internship_rows = (
+                    supabase.table('internships')
+                    .select('id, title')
+                    .eq('id', app_row.get('internship_id'))
+                    .limit(1)
+                    .execute()
+                    .data or []
+                )
+                if internship_rows:
+                    internship_title = internship_rows[0].get('title') or internship_title
+            except Exception:
+                pass
+
+        candidate_name = candidate_profile.get('full_name') or 'Candidate'
+        candidate_skills = _to_string_list(candidate_profile.get('skills'))
+        qualification = candidate_profile.get('qualification') or candidate_profile.get('course') or ''
+
+        questions = _generate_interview_question_suggestions(
+            interviewer_role=interviewer_role,
+            candidate_name=candidate_name,
+            candidate_skills=candidate_skills,
+            internship_title=internship_title,
+            qualification=qualification,
+        )
+
+        return jsonify({
+            'success': True,
+            'context': {
+                'interviewer_role': interviewer_role,
+                'candidate_name': candidate_name,
+                'internship_title': internship_title,
+                'skills_considered': candidate_skills[:5]
+            },
+            'questions': questions
+        })
+    except Exception as e:
+        print(f"Error generating interview question suggestions: {e}")
+        return jsonify({'success': False, 'message': f'Failed to generate suggestions: {str(e)[:220]}'}), 500
 
 @app.route('/api/company/applications/<int:application_id>/rating', methods=['PUT'])
 @company_login_required
@@ -4182,7 +4905,7 @@ def delete_internship():
 
 @app.route('/api/company/internships/<int:internship_id>/status', methods=['PATCH'])
 @company_login_required
-def update_internship_status():
+def update_internship_status(internship_id):
     """Update internship status."""
     try:
         company_id = session.get('company_id')
@@ -4298,6 +5021,73 @@ def mark_notification_read():
 # APPLICANT / STUDENT — INTERNSHIP BROWSE & APPLY
 # ==========================================
 
+def _candidate_id_column_variants():
+    """Possible candidate-id columns used by applications table across schema revisions."""
+    return ['student_id', 'user_id', 'applicant_id', 'candidate_id', 'candidate_user_id']
+
+
+def _to_string_list(value):
+    """Normalize mixed JSON/text values to a simple list of non-empty strings."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(v).strip() for v in value if str(v).strip()]
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return []
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                return [str(v).strip() for v in parsed if str(v).strip()]
+            if isinstance(parsed, str):
+                return [s.strip() for s in parsed.split(',') if s.strip()]
+        except Exception:
+            pass
+        return [s.strip() for s in raw.split(',') if s.strip()]
+    return [str(value).strip()] if str(value).strip() else []
+
+
+def _looks_like_missing_column_error(error_text, column_name):
+    msg = str(error_text or '').lower()
+    col = str(column_name or '').lower()
+    return f"'{col}'" in msg and 'could not find the' in msg and 'column' in msg
+
+
+def _force_array_field(table_name, row_id_column, row_id, field_name, raw_value):
+    """Best-effort coercion to store/verify array-like data for DB trigger compatibility."""
+    normalized = _to_string_list(raw_value)
+    candidate_values = [
+        normalized,
+        json.dumps(normalized),
+        json.dumps(normalized or []),
+    ]
+
+    errors = []
+    for candidate in candidate_values:
+        try:
+            supabase.table(table_name).update({field_name: candidate}).eq(row_id_column, row_id).execute()
+            check_rows = (
+                supabase.table(table_name)
+                .select(field_name)
+                .eq(row_id_column, row_id)
+                .limit(1)
+                .execute()
+                .data or []
+            )
+            if not check_rows:
+                continue
+            stored_value = (check_rows[0] or {}).get(field_name)
+            if _to_string_list(stored_value) == normalized:
+                return True, normalized, ''
+        except Exception as err:
+            errors.append(str(err))
+            # If field doesn't exist in this schema revision, skip this field.
+            if _looks_like_missing_column_error(err, field_name):
+                return True, normalized, ''
+
+    return False, normalized, ' | '.join(errors[-3:])
+
 @app.route('/internships')
 @login_required
 def internships_list():
@@ -4342,14 +5132,22 @@ def internships_list():
         application_statuses = {}
         if internships:
             internship_ids = [i['id'] for i in internships]
-            applied_response = (
-                supabase.table('applications')
-                .select('internship_id, status')
-                .eq('student_id', user['id'])
-                .in_('internship_id', internship_ids)
-                .execute()
-            )
-            for app_row in (applied_response.data or []):
+            applied_response = None
+            for user_col in _candidate_id_column_variants():
+                try:
+                    applied_response = (
+                        supabase.table('applications')
+                        .select('internship_id, status')
+                        .eq(user_col, user['id'])
+                        .in_('internship_id', internship_ids)
+                        .execute()
+                    )
+                    break
+                except Exception:
+                    continue
+
+            applied_rows = applied_response.data if applied_response and applied_response.data else []
+            for app_row in applied_rows:
                 applied_ids.add(app_row['internship_id'])
                 application_statuses[app_row['internship_id']] = app_row['status']
 
@@ -4391,14 +5189,60 @@ def apply_internship(internship_id):
 
         internship = internship_response.data[0]
 
-        # Check for duplicate application
+        # Normalize likely JSON-array source fields so DB triggers/functions don't crash.
+        normalize_checks = []
+        normalize_checks.append(
+            _force_array_field('users', 'id', user['id'], 'skills', user.get('skills'))
+        )
+        normalize_checks.append(
+            _force_array_field('users', 'id', user['id'], 'languages', user.get('languages'))
+        )
+        normalize_checks.append(
+            _force_array_field('internships', 'id', internship_id, 'requirements', internship.get('requirements'))
+        )
+        normalize_checks.append(
+            _force_array_field('internships', 'id', internship_id, 'preferred_qualifications', internship.get('preferred_qualifications'))
+        )
+
+        normalize_failures = [msg for ok, _arr, msg in normalize_checks if not ok and msg]
+        if normalize_failures:
+            return jsonify({
+                'success': False,
+                'message': f"Apply failed: JSON normalization failed. {(' | '.join(normalize_failures))[:260]}"
+            }), 500
+
+        # Detect which candidate id columns actually exist in this environment.
+        valid_user_columns = []
+        schema_probe_errors = []
+        for user_col in _candidate_id_column_variants():
+            try:
+                (
+                    supabase.table('applications')
+                    .select('id')
+                    .eq(user_col, user['id'])
+                    .limit(1)
+                    .execute()
+                )
+                valid_user_columns.append(user_col)
+            except Exception as probe_err:
+                schema_probe_errors.append(str(probe_err))
+                continue
+
+        if not valid_user_columns:
+            return jsonify({
+                'success': False,
+                'message': f"Apply failed: Could not find candidate id column in applications table. {(' | '.join(schema_probe_errors[-2:]))[:220]}"
+            }), 500
+
+        # Check for duplicate application using the first valid candidate column.
         existing_response = (
             supabase.table('applications')
             .select('id, status')
-            .eq('student_id', user['id'])
+            .eq(valid_user_columns[0], user['id'])
             .eq('internship_id', internship_id)
             .execute()
         )
+
         if existing_response.data:
             existing_status = existing_response.data[0].get('status', 'pending')
             return jsonify({
@@ -4407,16 +5251,74 @@ def apply_internship(internship_id):
                 'message': f'You have already applied. Current status: {existing_status.replace("_", " ").title()}'
             }), 200
 
-        # Insert new application
-        application_data = {
-            'student_id': user['id'],
-            'internship_id': internship_id,
-            'company_id': internship['company_id'],
-            'status': 'pending',
-            'applied_date': datetime.now(timezone.utc).isoformat()
-        }
+        # Insert new application with schema-tolerant fallback.
+        now_iso = datetime.now(timezone.utc).isoformat()
+        insert_response = None
+        last_insert_error = None
+        insert_errors = []
 
-        insert_response = supabase.table('applications').insert(application_data).execute()
+        candidate_payloads = []
+        status_variants = ['pending', 'new', 'applied', 'submitted']
+        for user_col in valid_user_columns:
+            for status_value in status_variants:
+                candidate_payloads.extend([
+                    {
+                        user_col: user['id'],
+                        'internship_id': internship_id,
+                        'status': status_value,
+                        'company_id': internship['company_id'],
+                        'applied_date': now_iso
+                    },
+                    {
+                        user_col: user['id'],
+                        'internship_id': internship_id,
+                        'status': status_value,
+                        'company_id': internship['company_id'],
+                        'created_at': now_iso
+                    },
+                    {
+                        user_col: user['id'],
+                        'internship_id': internship_id,
+                        'status': status_value,
+                        'applied_date': now_iso
+                    },
+                    {
+                        user_col: user['id'],
+                        'internship_id': internship_id,
+                        'status': status_value
+                    },
+                ])
+            candidate_payloads.extend([
+                {
+                    user_col: user['id'],
+                    'internship_id': internship_id,
+                    'company_id': internship['company_id'],
+                    'applied_date': now_iso
+                },
+                {
+                    user_col: user['id'],
+                    'internship_id': internship_id,
+                    'company_id': internship['company_id']
+                },
+                {
+                    user_col: user['id'],
+                    'internship_id': internship_id
+                },
+            ])
+
+        for payload in candidate_payloads:
+            try:
+                insert_response = supabase.table('applications').insert(payload).execute()
+                if insert_response.data:
+                    break
+            except Exception as insert_err:
+                last_insert_error = insert_err
+                insert_errors.append(str(insert_err))
+                continue
+
+        if (not insert_response or not insert_response.data) and last_insert_error:
+            concise_errors = ' | '.join(insert_errors[-3:]) if insert_errors else str(last_insert_error)
+            raise Exception(f"Applications insert failed. {concise_errors}")
 
         if insert_response.data:
             # Create a notification for the company
@@ -4439,7 +5341,10 @@ def apply_internship(internship_id):
 
     except Exception as e:
         print(f"Error applying for internship: {e}")
-        return jsonify({'success': False, 'message': 'Server error. Please try again.'}), 500
+        lower_error = str(e).lower()
+        if 'duplicate' in lower_error or 'unique' in lower_error:
+            return jsonify({'success': False, 'already_applied': True, 'message': 'You have already applied for this internship.'}), 200
+        return jsonify({'success': False, 'message': f'Apply failed: {str(e)[:260]}'}), 500
 
 
 @app.route('/my-applications')
@@ -4452,14 +5357,35 @@ def my_applications():
             return redirect(url_for('login'))
 
         # Fetch applications with internship and company details
-        apps_response = (
-            supabase.table('applications')
-            .select('*, internships(title, location, duration, stipend_amount, stipend_frequency, work_type, company_id, companies(company_name, industry, city))')
-            .eq('student_id', user['id'])
-            .order('applied_date', desc=True)
-            .execute()
-        )
+        apps_response = None
+        apps_error = None
+        for user_col in _candidate_id_column_variants():
+            try:
+                apps_response = (
+                    supabase.table('applications')
+                    .select('*, internships(title, location, duration, stipend_amount, stipend_frequency, work_type, company_id, companies(company_name, industry, city))')
+                    .eq(user_col, user['id'])
+                    .order('applied_date', desc=True)
+                    .execute()
+                )
+                apps_error = None
+                break
+            except Exception as err:
+                apps_error = err
+                continue
+
+        if apps_response is None and apps_error is not None:
+            raise apps_error
+
         applications = apps_response.data if apps_response.data else []
+
+        for app_row in applications:
+            app_row['interview_details'] = _build_interview_details(app_row)
+            details = app_row.get('interview_details') or {}
+            join_url = details.get('join_url') or ''
+            if join_url:
+                details['join_url'] = join_url if 'role=' in join_url else f"{join_url}{'&' if '?' in join_url else '?'}role=candidate"
+            app_row['interview_details'] = details
 
         return render_template('my_applications.html',
                                user=user,
@@ -4502,6 +5428,79 @@ def _safe_int(value, default=0):
         return default
 
 
+def _parse_interview_notes_payload(raw_value):
+    """Parse interview_notes into a dict payload safely."""
+    if isinstance(raw_value, dict):
+        return raw_value
+    if isinstance(raw_value, str) and raw_value.strip():
+        try:
+            parsed = json.loads(raw_value)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            return {'legacy_notes': raw_value.strip()}
+    return {}
+
+
+def _merge_interview_notes_payload(existing_notes, updates):
+    payload = _parse_interview_notes_payload(existing_notes)
+    for key, value in (updates or {}).items():
+        if value not in (None, ''):
+            payload[key] = value
+    return payload
+
+
+def _build_interview_details(application_row):
+    """Build a normalized interview object for templates/APIs."""
+    app_row = application_row or {}
+    notes_payload = _parse_interview_notes_payload(app_row.get('interview_notes'))
+    interview_date = app_row.get('interview_date')
+    room_id = notes_payload.get('interview_room_id') or ''
+    join_url = ''
+    if has_request_context() and room_id and app_row.get('id'):
+        try:
+            role_hint = None
+            auth_scope = str(session.get('auth_scope') or '').strip().lower()
+            is_company_session = bool(session.get('is_company') and session.get('company_id'))
+            is_candidate_session = bool(session.get('logged_in') and session.get('user_id'))
+
+            if auth_scope == 'company' and is_company_session:
+                role_hint = 'company'
+            elif auth_scope == 'candidate' and is_candidate_session:
+                role_hint = 'candidate'
+            elif is_candidate_session and not is_company_session:
+                role_hint = 'candidate'
+            elif is_company_session and not is_candidate_session:
+                role_hint = 'company'
+
+            if role_hint:
+                join_url = url_for('interview_room', room_id=room_id, application_id=app_row.get('id'), role=role_hint)
+            else:
+                join_url = url_for('interview_room', room_id=room_id, application_id=app_row.get('id'))
+        except Exception:
+            join_url = ''
+    return {
+        'scheduled': app_row.get('status') in ['interview_scheduled', 'interview_completed'],
+        'date': interview_date,
+        'type': app_row.get('interview_type') or notes_payload.get('interview_type') or 'video',
+        'interviewer_role': notes_payload.get('interviewer_role') or 'technical',
+        'interviewer_name': notes_payload.get('interviewer_name') or '',
+        'interviewer_email': notes_payload.get('interviewer_email') or '',
+        'communication_mode': notes_payload.get('communication_mode') or 'video_call',
+        'meeting_link': notes_payload.get('meeting_link') or '',
+        'room_id': room_id,
+        'join_url': join_url,
+        'meeting_id': notes_payload.get('meeting_id') or '',
+        'interview_notes_text': notes_payload.get('interview_notes_text') or notes_payload.get('legacy_notes') or '',
+        'duration_minutes': _safe_int(notes_payload.get('duration_minutes'), 30),
+        'candidate_confirmed': bool(notes_payload.get('candidate_confirmed')),
+        'candidate_response': notes_payload.get('candidate_response') or 'pending',
+        'candidate_response_note': notes_payload.get('candidate_response_note') or '',
+        'candidate_response_at': notes_payload.get('candidate_response_at') or '',
+        'company_confirmed': bool(notes_payload.get('company_confirmed')),
+    }
+
+
 TEAM_STATUS_ACTIVE = 'active'
 TEAM_STATUS_PAUSED = 'paused'
 TEAM_STATUS_CLOSED = 'closed'
@@ -4533,6 +5532,57 @@ def _team_visible_for_non_member(team_obj):
 def _normalize_member_progress(value):
     status = str(value or '').strip().lower()
     return status if status in ALLOWED_MEMBER_PROGRESS else MEMBER_PROGRESS_PENDING
+
+
+def _application_candidate_matches(app_row, user_id):
+    for col in _candidate_id_column_variants():
+        if _safe_int((app_row or {}).get(col), -1) == _safe_int(user_id, -2):
+            return True
+    return False
+
+
+def _generate_interview_question_suggestions(interviewer_role, candidate_name, candidate_skills, internship_title, qualification):
+    role = str(interviewer_role or 'technical').strip().lower()
+    skills = candidate_skills[:5] if candidate_skills else []
+    focus_skill = skills[0] if skills else 'your core skill'
+    secondary_skill = skills[1] if len(skills) > 1 else 'problem-solving'
+    internship = internship_title or 'this internship role'
+    qualification_text = qualification or 'your current qualification'
+
+    if role == 'technical':
+        questions = [
+            {'type': 'Technical', 'skill_focus': focus_skill, 'question': f'Can you explain a project where you used {focus_skill} and what outcome you achieved?'},
+            {'type': 'Technical', 'skill_focus': secondary_skill, 'question': f'How do you approach debugging when your {secondary_skill} based solution is not working as expected?'},
+            {'type': 'Role Fit', 'skill_focus': internship, 'question': f'What part of {internship} are you most confident to handle from day one?'},
+            {'type': 'Technical', 'skill_focus': 'System Thinking', 'question': 'How would you break down a large task into smaller implementable modules?'},
+            {'type': 'Behavioral', 'skill_focus': 'Collaboration', 'question': 'Tell me about a time you resolved a technical disagreement in a team.'},
+            {'type': 'Technical', 'skill_focus': 'Learning Agility', 'question': 'How do you quickly learn a new tool or framework when a deadline is close?'},
+        ]
+    elif role in ['hr', 'non_technical']:
+        questions = [
+            {'type': 'Motivation', 'skill_focus': internship, 'question': f'Why do you want to join {internship}, and what do you expect to learn?'},
+            {'type': 'Behavioral', 'skill_focus': 'Communication', 'question': 'Describe a situation where you had to explain a complex idea in simple language.'},
+            {'type': 'Behavioral', 'skill_focus': 'Ownership', 'question': 'Tell me about a time you took ownership of a task without being asked.'},
+            {'type': 'Culture Fit', 'skill_focus': 'Teamwork', 'question': 'How do you handle feedback from mentors or teammates during high-pressure work?'},
+            {'type': 'Career', 'skill_focus': qualification_text, 'question': f'How has your {qualification_text} prepared you for this internship?'},
+            {'type': 'Behavioral', 'skill_focus': 'Adaptability', 'question': 'Share an example where plans changed suddenly and how you adapted.'},
+        ]
+    else:
+        questions = [
+            {'type': 'Execution', 'skill_focus': 'Prioritization', 'question': 'If you get multiple tasks with the same deadline, how will you prioritize them?'},
+            {'type': 'Ownership', 'skill_focus': focus_skill, 'question': f'How would you estimate timeline and risks for a task involving {focus_skill}?'},
+            {'type': 'Coordination', 'skill_focus': 'Stakeholder Communication', 'question': 'How do you keep stakeholders updated when work gets blocked?'},
+            {'type': 'Decision Making', 'skill_focus': secondary_skill, 'question': f'When would you choose a simple solution over an advanced {secondary_skill} approach?'},
+            {'type': 'Behavioral', 'skill_focus': 'Resilience', 'question': 'Describe a setback in a project and how you recovered from it.'},
+            {'type': 'Role Fit', 'skill_focus': internship, 'question': f'What measurable outcomes would you target in your first month in {internship}?'},
+        ]
+
+    questions.extend([
+        {'type': 'Behavioral', 'skill_focus': 'Confidence', 'question': f'{candidate_name}, walk me through your strongest achievement in 60 seconds.'},
+        {'type': 'Behavioral', 'skill_focus': 'Self Awareness', 'question': 'What is one skill gap you are actively working on and what is your improvement plan?'},
+    ])
+
+    return questions[:10]
 
 
 def _is_team_deadline_over(team_id):

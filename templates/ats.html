@@ -3,92 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CV Analyzer - PM Internship Scheme</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <title>CV Analyzer - Check & Improve Your ATS Score</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/ats.css') }}">
+
 </head>
 <body>
-    <div class="nav-bar">
-        <div class="nav-brand">
-            <a href="{{ url_for('home') }}">
-                <img src="{{ url_for('static', filename='images/pm_internship_logo_eng.svg') }}" alt="PM Internship Logo">
-            </a>
-        </div>
-        <div class="nav-actions">
-            <div class="user-info">
-                <i class="fas fa-user"></i>
-                <span>Welcome, {{ user_name if user_name else 'User' }}!</span>
-            </div>
-            <a href="{{ url_for('profile') }}" class="profile-btn">
-                <i class="fas fa-id-card"></i>
-                Profile
-            </a>
-            <a href="{{ url_for('home') }}" class="home-btn">
-                <i class="fas fa-home"></i>
-                Home
-            </a>
-            <a href="{{ url_for('logout') }}" class="logout-btn">
-                <i class="fas fa-sign-out-alt"></i>
-                Logout
-            </a>
-        </div>
-    </div>
-
     <div class="container">
-        <header class="page-header">
+        <div class="header">
             <h1>CV Analyzer</h1>
-            <p class="subtitle">Upload your CV and get ATS-focused feedback with actionable improvements</p>
-        </header>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="flash-messages">
-                    {% for category, message in messages %}
-                        <div class="flash-message flash-{{ category }}">{{ message }}</div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
+            <p class="subtitle">Upload your CV, check your ATS score, and get improvement suggestions</p>
+        </div>
         
         <div class="content">
             <div class="upload-section">
-                <h2>Upload CV</h2>
                 <div class="upload-icon" id="uploadIcon">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                         <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
                     </svg>
                 </div>
-                <p>Click or drag a file here. Supported formats: PDF, DOC, DOCX, TXT.</p>
-                <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt" style="display: none;">
-                <button class="upload-btn" id="uploadBtn">Choose File</button>
+                <p>Click to upload your CV</p>
+                <p class="file-info">Supported formats: PDF, DOC, DOCX</p>
+                <p class="fileName" id="fileName">No file selected</p>
+                <input type="file" id="fileInput" accept=".pdf,.doc,.docx">
             </div>
-
-            <div class="analysis-result" id="analysisResult" style="display: none;">
-                <h2>Analysis Result</h2>
+            
+            <div class="button-section">
+                <button class="check-btn" id="checkBtn">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />
+                    </svg>
+                    Check ATS Score
+                </button>
+            </div>
+            
+            <div class="result-section" id="resultSection">
                 <div class="score-display">
-                    <div class="score-circle">
-                        <span id="scoreValue">0</span>%
+                    <h2>Your ATS Score</h2>
+                    <div class="score-value" id="scoreValue">0</div>
+                    <div class="score-bar">
+                        <div class="score-fill" id="scoreFill"></div>
                     </div>
-                    <p>ATS Score</p>
+                    <p class="feedback" id="feedback">Analyzing your CV...</p>
                 </div>
-
-                <div class="suggestions">
-                    <h3>Improvement Suggestions</h3>
-                    <ul id="suggestionsList">
-                        <!-- Suggestions will be populated here -->
+                
+                <div class="details">
+                    <div class="detail-item">
+                        <div class="detail-value" id="keywordScore">0%</div>
+                        <div class="detail-label">Keyword Match</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-value" id="formatScore">0%</div>
+                        <div class="detail-label">Formatting</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-value" id="projectScore">0%</div>
+                        <div class="detail-label">Projects</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-value" id="experienceScore">0%</div>
+                        <div class="detail-label">Experience</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="suggestions-section" id="suggestionsSection">
+                <h2>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M11,16.5L18,9.5L16.59,8.09L11,13.67L7.91,10.59L6.5,12L11,16.5Z" />
+                    </svg>
+                    Suggestions to Improve Your CV
+                </h2>
+                
+                <div class="suggestion-category">
+                    <h3>Keyword Optimization</h3>
+                    <ul class="suggestion-list" id="keywordSuggestions">
+                        <!-- Suggestions will be populated by JavaScript -->
                     </ul>
                 </div>
-
-                <div class="keywords-section">
-                    <h3>Keywords Analysis</h3>
-                    <h4>Matched</h4>
-                    <div class="keywords-found" id="keywordsFound">
-                        <!-- Keywords will be displayed here -->
-                    </div>
-                    <h4>Missing</h4>
-                    <div class="keywords-missing" id="keywordsMissing">
-                        <!-- Missing keywords will be displayed here -->
-                    </div>
+                
+                <div class="suggestion-category">
+                    <h3>Content & Structure</h3>
+                    <ul class="suggestion-list" id="contentSuggestions">
+                        <!-- Suggestions will be populated by JavaScript -->
+                    </ul>
+                </div>
+                
+                <div class="suggestion-category">
+                    <h3>Formatting & Design</h3>
+                    <ul class="suggestion-list" id="formatSuggestions">
+                        <!-- Suggestions will be populated by JavaScript -->
+                    </ul>
+                </div>
+                
+                <div class="improvement-tips">
+                    <h4>Quick Improvement Tips</h4>
+                    <p>Focus on these areas first to quickly boost your ATS score:</p>
+                    <ul class="suggestion-list">
+                        <li class="suggestion-item">
+                            <svg class="suggestion-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M11,16.5L18,9.5L16.59,8.09L11,13.67L7.91,10.59L6.5,12L11,16.5Z" />
+                            </svg>
+                            <span>Add missing keywords from the job description</span>
+                        </li>
+                        <li class="suggestion-item">
+                            <svg class="suggestion-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M11,16.5L18,9.5L16.59,8.09L11,13.67L7.91,10.59L6.5,12L11,16.5Z" />
+                            </svg>
+                            <span>Use bullet points and clear section headings</span>
+                        </li>
+                        <li class="suggestion-item">
+                            <svg class="suggestion-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M11,16.5L18,9.5L16.59,8.09L11,13.67L7.91,10.59L6.5,12L11,16.5Z" />
+                            </svg>
+                            <span>Quantify achievements with numbers and metrics</span>
+                        </li>
+                    </ul>
                 </div>
             </div>
         </div>

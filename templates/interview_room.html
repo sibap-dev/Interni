@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>In-App Interview Room</title>
+    <script src="https://meet.jit.si/external_api.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #111827;
+            --text: #e5e7eb;
+            --muted: #94a3b8;
+            --accent: #10b981;
+            --danger: #ef4444;
+            --card: #1f2937;
+            --border: #334155;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: radial-gradient(circle at 10% 10%, #1e293b, #0b1220 55%);
+            color: var(--text);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .layout {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            min-height: 100vh;
+        }
+        .sidebar {
+            background: rgba(17,24,39,0.95);
+            border-right: 1px solid var(--border);
+            padding: 16px;
+        }
+        .title { margin: 0 0 6px; font-size: 1.1rem; }
+        .muted { color: var(--muted); font-size: 0.85rem; }
+        .badge {
+            display: inline-block;
+            margin-top: 10px;
+            font-size: 0.75rem;
+            padding: 5px 10px;
+            border-radius: 999px;
+            background: rgba(16,185,129,0.2);
+            color: #6ee7b7;
+            border: 1px solid rgba(16,185,129,0.35);
+        }
+        .panel {
+            margin-top: 14px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .panel h4 { margin: 0 0 8px; font-size: 0.9rem; }
+        .metric { font-size: 0.82rem; margin: 5px 0; }
+        .question-list {
+            margin: 0;
+            padding-left: 18px;
+            max-height: 240px;
+            overflow-y: auto;
+        }
+        .question-list li {
+            font-size: 0.82rem;
+            margin-bottom: 8px;
+            line-height: 1.35;
+        }
+        .question-meta {
+            display: block;
+            color: var(--muted);
+            font-size: 0.72rem;
+            margin-top: 2px;
+        }
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+            background: var(--danger);
+        }
+        .dot.ok { background: var(--accent); }
+        #localPreview {
+            width: 100%;
+            border-radius: 8px;
+            margin-top: 8px;
+            background: #000;
+            border: 1px solid var(--border);
+        }
+        .actions {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn.primary { background: #2563eb; color: #fff; }
+        .btn.danger { background: #b91c1c; color: #fff; }
+        .main {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #jitsiContainer {
+            flex: 1;
+            min-height: calc(100vh - 24px);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            background: #0b1220;
+        }
+        @media (max-width: 900px) {
+            .layout { grid-template-columns: 1fr; }
+            .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+            #jitsiContainer { min-height: 70vh; }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <h3 class="title">In-App Interview Room</h3>
+            <div class="muted">Room: {{ room_id }}</div>
+            <div class="muted">Participant: {{ participant_name }} ({{ participant_role }})</div>
+            {% if interview_date %}
+            <div class="muted">Scheduled: {{ interview_date[:16].replace('T', ' ') }}</div>
+            {% endif %}
+            <span class="badge">Behavioral Signals Enabled</span>
+
+            <div class="panel">
+                <h4>Local Camera Preview</h4>
+                <video id="localPreview" autoplay muted playsinline></video>
+                <div class="actions">
+                    <button class="btn primary" onclick="startCamera()">Start Camera</button>
+                    <button class="btn danger" onclick="stopCamera()">Stop Camera</button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h4>Live Behavioral Metrics</h4>
+                <div class="metric"><span id="faceDot" class="dot"></span> Face Detected: <span id="faceMetric">No</span></div>
+                <div class="metric"><span id="focusDot" class="dot ok"></span> Tab Active: <span id="focusMetric">Yes</span></div>
+                <div class="metric"><span id="cameraDot" class="dot"></span> Camera Active: <span id="cameraMetric">No</span></div>
+                <div class="metric">Focus Loss Count: <span id="focusLossCount">0</span></div>
+                <div class="metric">No-Face Count: <span id="noFaceCount">0</span></div>
+            </div>
+
+            {% if can_view_question_assist %}
+            <div class="panel">
+                <h4>Interviewer Assist: Suggested Questions</h4>
+                <div class="actions" style="margin-top:6px;">
+                    <button class="btn primary" onclick="loadQuestionSuggestions()">Refresh Suggestions</button>
+                </div>
+                <p id="questionContext" class="muted" style="margin-top:8px;">
+                    {% if initial_question_context and initial_question_context.get('interviewer_role') %}
+                        Role: {{ initial_question_context.get('interviewer_role', 'technical')|replace('_', ' ') }} | Candidate: {{ initial_question_context.get('candidate_name', 'Candidate') }} | Internship: {{ initial_question_context.get('internship_title', '-') }}
+                    {% else %}
+                        Questions are personalized based on role and candidate profile.
+                    {% endif %}
+                </p>
+                <ol id="questionList" class="question-list">
+                    {% if initial_questions %}
+                        {% for q in initial_questions %}
+                        <li>
+                            {{ q.question }}
+                            <span class="question-meta">{{ q.type }} | Focus: {{ q.skill_focus }}</span>
+                        </li>
+                        {% endfor %}
+                    {% endif %}
+                </ol>
+            </div>
+            {% endif %}
+        </aside>
+
+        <main class="main">
+            <div id="jitsiContainer"></div>
+        </main>
+    </div>
+
+    <script id="interview-data" type="application/json">{{ {
+        "room_id": room_id,
+        "application_id": application_id,
+        "participant_name": participant_name,
+        "participant_role": participant_role,
+        "can_view_question_assist": can_view_question_assist,
+        "initial_questions": initial_questions
+    }|tojson }}</script>
+    <script>
+        const interviewData = JSON.parse(document.getElementById('interview-data').textContent || '{}');
+        const roomId = interviewData.room_id;
+        const applicationId = interviewData.application_id;
+        const displayName = interviewData.participant_name;
+        const participantRole = String(interviewData.participant_role || '').toLowerCase();
+        const canViewQuestionAssist = Boolean(interviewData.can_view_question_assist);
+        const initialQuestions = Array.isArray(interviewData.initial_questions) ? interviewData.initial_questions : [];
+
+        let api = null;
+        let localStream = null;
+        let faceDetected = false;
+        let cameraActive = false;
+        let tabActive = true;
+        let focusLossCount = 0;
+        let noFaceCount = 0;
+
+        function updateMetricUI() {
+            document.getElementById('faceMetric').textContent = faceDetected ? 'Yes' : 'No';
+            document.getElementById('focusMetric').textContent = tabActive ? 'Yes' : 'No';
+            document.getElementById('cameraMetric').textContent = cameraActive ? 'Yes' : 'No';
+            document.getElementById('focusLossCount').textContent = String(focusLossCount);
+            document.getElementById('noFaceCount').textContent = String(noFaceCount);
+
+            document.getElementById('faceDot').className = `dot ${faceDetected ? 'ok' : ''}`;
+            document.getElementById('focusDot').className = `dot ${tabActive ? 'ok' : ''}`;
+            document.getElementById('cameraDot').className = `dot ${cameraActive ? 'ok' : ''}`;
+        }
+
+        async function startCamera() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                const localPreview = document.getElementById('localPreview');
+                localPreview.srcObject = localStream;
+                cameraActive = true;
+                updateMetricUI();
+            } catch (error) {
+                alert('Camera access failed. Please allow camera/mic permissions.');
+                cameraActive = false;
+                updateMetricUI();
+            }
+        }
+
+        function stopCamera() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            const localPreview = document.getElementById('localPreview');
+            localPreview.srcObject = null;
+            cameraActive = false;
+            faceDetected = false;
+            updateMetricUI();
+        }
+
+        async function detectFaceSignal() {
+            if (!cameraActive || !localStream) {
+                faceDetected = false;
+                updateMetricUI();
+                return;
+            }
+
+            try {
+                if ('FaceDetector' in window) {
+                    const detector = new FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+                    const faces = await detector.detect(document.getElementById('localPreview'));
+                    faceDetected = Array.isArray(faces) && faces.length > 0;
+                } else {
+                    // Fallback heuristic when FaceDetector API is unavailable.
+                    faceDetected = true;
+                }
+            } catch (_error) {
+                faceDetected = false;
+            }
+
+            if (!faceDetected) {
+                noFaceCount += 1;
+            }
+            updateMetricUI();
+        }
+
+        async function sendBehaviorSignal() {
+            try {
+                await fetch(`/api/interviews/${applicationId}/behavior`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        room_id: roomId,
+                        face_detected: faceDetected,
+                        tab_active: tabActive,
+                        camera_active: cameraActive,
+                        metrics: {
+                            focus_loss_count: focusLossCount,
+                            no_face_count: noFaceCount
+                        }
+                    })
+                });
+            } catch (_error) {
+                // Non-blocking telemetry.
+            }
+        }
+
+        function initJitsi() {
+            const domain = 'meet.jit.si';
+            const options = {
+                roomName: roomId,
+                parentNode: document.querySelector('#jitsiContainer'),
+                userInfo: { displayName: displayName },
+                configOverwrite: {
+                    prejoinPageEnabled: false,
+                    startWithAudioMuted: false,
+                    startWithVideoMuted: false,
+                },
+                interfaceConfigOverwrite: {
+                    SHOW_JITSI_WATERMARK: false,
+                    SHOW_BRAND_WATERMARK: false,
+                }
+            };
+            api = new JitsiMeetExternalAPI(domain, options);
+        }
+
+        async function loadQuestionSuggestions() {
+            if (!canViewQuestionAssist || participantRole !== 'company') {
+                return;
+            }
+            const questionList = document.getElementById('questionList');
+            const questionContext = document.getElementById('questionContext');
+            if (!questionList || !questionContext) {
+                return;
+            }
+            questionList.innerHTML = '<li>Loading suggestions...</li>';
+            try {
+                const response = await fetch(`/api/company/applications/${applicationId}/interview-question-suggestions`);
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    questionList.innerHTML = `<li>${(data && data.message) || 'Unable to load suggestions.'}</li>`;
+                    return;
+                }
+
+                const ctx = data.context || {};
+                questionContext.textContent = `Role: ${(ctx.interviewer_role || '').replace('_', ' ')} | Candidate: ${ctx.candidate_name || 'Candidate'} | Internship: ${ctx.internship_title || '-'}`;
+
+                const questions = Array.isArray(data.questions) ? data.questions : [];
+                if (!questions.length) {
+                    questionList.innerHTML = '<li>No suggestions available right now.</li>';
+                    return;
+                }
+
+                questionList.innerHTML = questions.map(q => {
+                    const text = q.question || '';
+                    const type = q.type || 'General';
+                    const skill = q.skill_focus || '-';
+                    return `<li>${text}<span class="question-meta">${type} | Focus: ${skill}</span></li>`;
+                }).join('');
+            } catch (_error) {
+                if (initialQuestions.length) {
+                    questionList.innerHTML = initialQuestions.map(q => {
+                        const text = q.question || '';
+                        const type = q.type || 'General';
+                        const skill = q.skill_focus || '-';
+                        return `<li>${text}<span class="question-meta">${type} | Focus: ${skill}</span></li>`;
+                    }).join('');
+                } else {
+                    questionList.innerHTML = '<li>Network error while loading suggestions.</li>';
+                }
+            }
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            tabActive = !document.hidden;
+            if (!tabActive) {
+                focusLossCount += 1;
+            }
+            updateMetricUI();
+        });
+
+        window.addEventListener('beforeunload', () => {
+            sendBehaviorSignal();
+            stopCamera();
+        });
+
+        initJitsi();
+        updateMetricUI();
+        setInterval(detectFaceSignal, 5000);
+        setInterval(sendBehaviorSignal, 20000);
+        if (canViewQuestionAssist && participantRole === 'company') {
+            if (initialQuestions.length) {
+                const questionList = document.getElementById('questionList');
+                if (questionList && !questionList.children.length) {
+                    questionList.innerHTML = initialQuestions.map(q => {
+                        const text = q.question || '';
+                        const type = q.type || 'General';
+                        const skill = q.skill_focus || '-';
+                        return `<li>${text}<span class="question-meta">${type} | Focus: ${skill}</span></li>`;
+                    }).join('');
+                }
+            }
+            loadQuestionSuggestions();
+        }
+    </script>
+</body>
+</html>

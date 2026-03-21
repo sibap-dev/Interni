@@ -3,1848 +3,470 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Candidates Management - PM Internship Scheme</title>
+    <title>Candidate Management - PM Internship Scheme</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary: #1a73e8;
-            --primary-dark: #0d47a1;
-            --secondary: #34a853;
-            --warning: #f9a825;
-            --danger: #ea4335;
-            --light: #f8f9fa;
-            --dark: #202124;
-            --gray: #5f6368;
-            --light-gray: #dadce0;
-            --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            --company-primary: #6a1b9a;
-            --company-dark: #4a148c;
+            --primary: #6a1b9a;
+            --primary-dark: #4a148c;
+            --success: #2e7d32;
+            --danger: #c62828;
+            --info: #0277bd;
+            --bg: #f5f7fa;
+            --text: #202124;
+            --muted: #5f6368;
+            --border: #e3e7ef;
+            --card: #ffffff;
+            --shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
         }
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        body {
-            background-color: #f5f7fa;
-            color: var(--dark);
-            line-height: 1.6;
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-        
 
-        
-        .candidates-hero {
-            padding: 3rem 0;
-            background: linear-gradient(135deg, #6a1b9a 0%, #4a148c 100%);
-            color: white;
-            position: relative;
-            overflow: hidden;
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--text);
         }
-        
-        .candidates-hero::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="rgba(255,255,255,0.1)" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,165.3C1248,171,1344,149,1392,138.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>') no-repeat bottom;
-            background-size: cover;
-            opacity: 0.3;
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+
+        .hero {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: #fff;
+            padding: 28px 0;
         }
-        
-        .hero-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: relative;
-            z-index: 1;
-        }
-        
-        .hero-text h1 {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
-            font-weight: 700;
-        }
-        
-        .hero-text p {
-            font-size: 1.1rem;
-            max-width: 600px;
-            opacity: 0.95;
-        }
-        
-        .candidates-stats {
-            display: flex;
-            gap: 3rem;
-        }
-        
-        .stat-item {
-            text-align: center;
-            background: rgba(255, 255, 255, 0.15);
-            padding: 1.5rem 2rem;
-            border-radius: 12px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: transform 0.3s, background 0.3s;
-        }
-        
-        .stat-item:hover {
-            transform: translateY(-5px);
-            background: rgba(255, 255, 255, 0.25);
-        }
-        
-        .stat-value {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: white;
-            margin-bottom: 0.3rem;
-        }
-        
-        .stat-label {
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 0.95rem;
-            font-weight: 500;
-        }
-        
-        .btn {
-            display: inline-block;
-            background-color: var(--company-primary);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 4px;
-            text-decoration: none;
-            font-weight: 600;
-            border: none;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .btn:hover {
-            background-color: var(--company-dark);
-            transform: translateY(-2px);
-        }
-        
-        .btn-outline {
-            background: transparent;
-            border: 1px solid var(--company-primary);
-            color: var(--company-primary);
-        }
-        
-        .btn-outline:hover {
-            background: var(--company-primary);
-            color: white;
-        }
-        
-        .btn-success {
-            background-color: var(--secondary);
-        }
-        
-        .btn-success:hover {
-            background-color: #2e8b47;
-        }
-        
-        .btn-warning {
-            background-color: var(--warning);
-        }
-        
-        .btn-warning:hover {
-            background-color: #f57f17;
-        }
-        
-        .btn-danger {
-            background-color: var(--danger);
-        }
-        
-        .btn-danger:hover {
-            background-color: #d32f2f;
-        }
-        
-        .candidates-section {
-            padding: 2rem 0;
-        }
-        
-        .section-title {
-            margin-bottom: 2.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-bottom: 1rem;
-            border-bottom: 3px solid #f0f0f0;
-        }
-        
-        .section-title h2 {
-            font-size: 2rem;
-            color: var(--company-dark);
-            font-weight: 700;
-            position: relative;
-        }
-        
-        .section-title h2::after {
-            content: '';
-            position: absolute;
-            bottom: -0.5rem;
-            left: 0;
-            width: 60px;
-            height: 4px;
-            background: linear-gradient(90deg, #6a1b9a, #4a148c);
-            border-radius: 2px;
-        }
-        
-        .candidate-status {
-            display: inline-block;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .candidate-card.new .candidate-status {
-            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
-            color: #0d47a1;
-        }
-        
-        .candidate-card.review .candidate-status {
-            background: linear-gradient(135deg, #fff8e1, #ffecb3);
-            color: #f57f17;
-        }
-        
-        .candidate-card.shortlisted .candidate-status {
-            background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
-            color: #2e7d32;
-        }
-        
-        .candidate-card.interview .candidate-status {
-            background: linear-gradient(135deg, #e1f5fe, #b3e5fc);
-            color: #01579b;
-        }
-        
-        .candidate-card.waitlisted .candidate-status {
-            background: linear-gradient(135deg, #f3e5f5, #e1bee7);
-            color: #6a1b9a;
-        }
-        
-        .candidate-card.rejected .candidate-status {
-            background: linear-gradient(135deg, #ffebee, #ffcdd2);
-            color: #c62828;
-        }
-        
-        .candidates-content {
+
+        .hero h1 { margin: 0 0 6px; font-size: 2rem; }
+        .hero p { margin: 0; opacity: 0.92; }
+
+        .stats {
             display: grid;
-            grid-template-columns: 300px 1fr;
-            gap: 2rem;
-            position: relative;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin: 16px 0 0;
         }
-        
-        .filter-toggle-btn {
-            display: none;
-            background: linear-gradient(135deg, #6a1b9a, #4a148c);
-            color: white;
-            border: none;
+
+        .stat {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
             border-radius: 10px;
-            padding: 12px 20px;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(106, 27, 154, 0.3);
-            align-items: center;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stat strong { display: block; font-size: 1.4rem; }
+
+        .controls {
+            margin: 20px 0;
+            display: flex;
             gap: 10px;
-            font-weight: 600;
-            font-size: 0.95rem;
-            transition: all 0.3s ease;
-            margin-bottom: 1.5rem;
-            width: fit-content;
+            flex-wrap: wrap;
+            align-items: center;
         }
-        
-        .filter-toggle-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(106, 27, 154, 0.4);
+
+        .controls input, .controls select {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #fff;
         }
-        
-        .filter-toggle-btn i {
-            font-size: 1.1rem;
+
+        .controls input { min-width: 280px; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
         }
-        
-        .filters-sidebar {
-            background: white;
+
+        .card {
+            background: var(--card);
             border-radius: 12px;
-            padding: 2rem;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            height: fit-content;
-            position: sticky;
-            top: 100px;
-            border: 1px solid rgba(106, 27, 154, 0.1);
-            transition: all 0.3s ease;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            padding: 16px;
         }
-        
-        .filters-sidebar.collapsed {
-            display: none;
-        }
-        
-        .filter-close-btn {
-            display: none;
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: transparent;
-            border: none;
-            color: var(--company-primary);
-            font-size: 1.5rem;
-            cursor: pointer;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            transition: all 0.3s ease;
-        }
-        
-        .filter-close-btn:hover {
-            background: rgba(106, 27, 154, 0.1);
-            transform: rotate(90deg);
-        }
-        
-        .filters-sidebar h3 {
-            color: var(--company-dark);
-            font-size: 1.3rem;
-            font-weight: 600;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 2px solid #f0f0f0;
-        }
-        
-        .filter-group {
-            margin-bottom: 1.5rem;
-        }
-        
-        .filter-title {
-            font-weight: 600;
-            margin-bottom: 1rem;
-            color: var(--dark);
+
+        .top {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-        }
-        
-        .filter-options {
-            display: flex;
-            flex-direction: column;
-            gap: 0.8rem;
-        }
-        
-        .filter-option {
-            display: flex;
             align-items: center;
             gap: 8px;
+            margin-bottom: 10px;
         }
-        
-        .filter-option input {
-            width: 18px;
-            height: 18px;
-        }
-        
-        .filter-option label {
-            cursor: pointer;
-            color: var(--gray);
-        }
-        
-        .status-filters {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-        
-        .status-filter {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 14px 16px;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: 2px solid transparent;
-            font-weight: 500;
-        }
-        
-        .status-filter:hover {
-            background-color: #f8f9fa;
-            transform: translateX(5px);
-        }
-        
-        .status-filter.active {
-            background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
-            border: 2px solid var(--company-primary);
-            box-shadow: 0 2px 8px rgba(106, 27, 154, 0.2);
-        }
-        
-        .status-icon {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.8rem;
-        }
-        
-        .status-new .status-icon {
-            background: #e3f2fd;
-            color: var(--primary);
-        }
-        
-        .status-review .status-icon {
-            background: #fff8e1;
-            color: var(--warning);
-        }
-        
-        .status-shortlisted .status-icon {
-            background: #e8f5e9;
-            color: var(--secondary);
-        }
-        
-        .status-interview .status-icon {
-            background: #e1f5fe;
-            color: #0288d1;
-        }
-        
-        .status-waitlisted .status-icon {
-            background: #f3e5f5;
-            color: #7b1fa2;
-        }
-        
-        .status-rejected .status-icon {
-            background: #ffebee;
-            color: var(--danger);
-        }
-        
-        .status-offer .status-icon {
-            background: #e8f5e9;
-            color: var(--secondary);
-        }
-        
-        .status-count {
-            margin-left: auto;
-            background: var(--light-gray);
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        
-        .match-score-slider {
-            width: 100%;
-            margin: 1rem 0;
-        }
-        
-        .slider-value {
-            text-align: center;
-            font-weight: 600;
-            color: var(--company-primary);
-            margin-top: 0.5rem;
-        }
-        
-        .candidates-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 1.5rem;
-        }
-        
-        .candidate-card {
-            background: white;
-            border-radius: 12px;
-            padding: 2rem;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-            border-left: 5px solid var(--company-primary);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .candidate-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 100px;
-            height: 100px;
-            background: linear-gradient(135deg, rgba(106, 27, 154, 0.05), transparent);
-            border-radius: 0 0 0 100px;
-        }
-        
-        .candidate-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 8px 24px rgba(106, 27, 154, 0.15);
-            border-left-width: 6px;
-        }
-        
-        .candidate-card.new {
-            border-left-color: var(--primary);
-        }
-        
-        .candidate-card.review {
-            border-left-color: var(--warning);
-        }
-        
-        .candidate-card.shortlisted {
-            border-left-color: var(--secondary);
-        }
-        
-        .candidate-card.interview {
-            border-left-color: #0288d1;
-        }
-        
-        .candidate-card.waitlisted {
-            border-left-color: #7b1fa2;
-        }
-        
-        .candidate-card.rejected {
-            border-left-color: var(--danger);
-        }
-        
-        .candidate-card.offer {
-            border-left-color: var(--secondary);
-        }
-        
-        .candidate-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 1rem;
-        }
-        
-        .candidate-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-        
-        .candidate-avatar {
-            width: 70px;
-            height: 70px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #6a1b9a, #4a148c);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
+
+        .status {
+            font-size: 0.75rem;
             font-weight: 700;
-            flex-shrink: 0;
-            box-shadow: 0 4px 12px rgba(106, 27, 154, 0.3);
-            border: 3px solid white;
+            text-transform: uppercase;
+            padding: 5px 10px;
+            border-radius: 999px;
+            background: #eceff4;
+            color: #344054;
         }
-        
-        .candidate-details h3 {
-            font-size: 1.2rem;
-            color: var(--dark);
-            margin-bottom: 0.3rem;
-            font-weight: 600;
+
+        .status.shortlisted { background: #e8f5e9; color: #1b5e20; }
+        .status.interview_scheduled { background: #e1f5fe; color: #01579b; }
+        .status.rejected { background: #ffebee; color: #b71c1c; }
+        .status.pending, .status.new, .status.under_review { background: #fff8e1; color: #8a5a00; }
+
+        .name { font-size: 1.1rem; margin: 0 0 2px; }
+        .meta { color: var(--muted); font-size: 0.88rem; margin: 2px 0; }
+
+        .skills { margin: 10px 0; display: flex; gap: 6px; flex-wrap: wrap; }
+        .skill {
+            font-size: 0.75rem;
+            background: #f0e8f7;
+            color: #54246e;
+            padding: 5px 8px;
+            border-radius: 999px;
         }
-        
-        .candidate-details p {
-            color: var(--gray);
-            font-size: 0.9rem;
-            margin: 0.2rem 0;
-        }
-        
-        .candidate-match {
-            margin-bottom: 1.5rem;
-        }
-        
-        .match-bar {
-            width: 100%;
-            height: 8px;
-            background: #e0e0e0;
-            border-radius: 4px;
-            overflow: hidden;
-            margin-top: 0.5rem;
-        }
-        
-        .match-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #4caf50, #8bc34a);
-            border-radius: 4px;
-            transition: width 0.5s ease;
-        }
-        
-        .match-value {
-            font-weight: 600;
-            color: var(--company-primary);
-            font-size: 0.9rem;
-        }
-        
-        .candidate-skills {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-        }
-        
-        .skill-tag {
-            background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
-            color: var(--company-dark);
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 500;
-            border: 1px solid rgba(106, 27, 154, 0.15);
-            transition: all 0.3s;
-        }
-        
-        .skill-tag:hover {
-            transform: scale(1.05);
-            box-shadow: 0 2px 8px rgba(106, 27, 154, 0.2);
-        }
-        
-        .candidate-actions {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-        
-        .action-btn {
-            padding: 10px 16px;
+
+        .actions { margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+        .btn {
             border: none;
             border-radius: 8px;
-            font-size: 0.9rem;
+            padding: 10px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
-            flex: 1;
-            min-width: 100px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            text-decoration: none;
-            display: inline-block;
             text-align: center;
-        }
-        
-        .btn-view {
-            background: linear-gradient(135deg, #6a1b9a, #4a148c);
-            color: white;
-            box-shadow: 0 3px 8px rgba(106, 27, 154, 0.3);
             text-decoration: none;
-        }
-        
-        .btn-view:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 12px rgba(106, 27, 154, 0.4);
-        }
-        
-        .btn-shortlist {
-            background: var(--secondary);
-            color: white;
-        }
-        
-        .btn-shortlist:hover {
-            background: #2e8b47;
-        }
-        
-        .btn-interview {
-            background: #0288d1;
-            color: white;
-        }
-        
-        .btn-interview:hover {
-            background: #0277bd;
-        }
-        
-        .btn-waitlist {
-            background: #7b1fa2;
-            color: white;
-        }
-        
-        .btn-waitlist:hover {
-            background: #6a1b9a;
-        }
-        
-        .btn-reject {
-            background: var(--danger);
-            color: white;
-        }
-        
-        .btn-reject:hover {
-            background: #d32f2f;
-        }
-        
-        .candidate-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 1rem;
-            padding-top: 1rem;
-            border-top: 1px solid var(--light-gray);
             font-size: 0.85rem;
-            color: var(--gray);
+            color: #fff;
         }
-        
-        .status-badges {
-            display: flex;
-            gap: 0.8rem;
-            flex-wrap: wrap;
-        }
-        
-        .status-badge {
-            padding: 8px 16px;
-            border-radius: 25px;
-            font-weight: 600;
-            font-size: 0.85rem;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s;
-        }
-        
-        .status-badge:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-        }
-        
-        .badge-new {
-            background: #e3f2fd;
-            color: var(--primary);
-        }
-        
-        .badge-review {
-            background: #fff8e1;
-            color: var(--warning);
-        }
-        
-        .badge-shortlisted {
-            background: #e8f5e9;
-            color: var(--secondary);
-        }
-        
-        .badge-interview {
-            background: #e1f5fe;
-            color: #0288d1;
-        }
-        
-        .badge-waitlisted {
-            background: #f3e5f5;
-            color: #7b1fa2;
-        }
-        
-        .badge-rejected {
-            background: #ffebee;
-            color: var(--danger);
-        }
-        
-        .badge-offer {
-            background: #e8f5e9;
-            color: var(--secondary);
-        }
-        
-        .view-all {
+
+        .btn-view { background: var(--primary); }
+        .btn-shortlist { background: var(--success); }
+        .btn-interview { background: var(--info); }
+        .btn-reject { background: var(--danger); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .empty {
+            background: #fff;
+            border: 1px dashed #c8d0dd;
+            border-radius: 12px;
+            padding: 28px;
             text-align: center;
-            margin-top: 2rem;
+            color: var(--muted);
         }
-        
-        .footer {
-            background-color: var(--dark);
-            color: white;
-            padding: 3rem 0;
-            text-align: center;
-        }
-        
-        .footer-content {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 2rem;
-            text-align: left;
-        }
-        
-        .footer-section h3 {
-            margin-bottom: 1rem;
-            font-size: 1.2rem;
-        }
-        
-        .footer-section p, .footer-section a {
-            color: #bdc1c6;
-            margin-bottom: 0.5rem;
-            display: block;
-            text-decoration: none;
-        }
-        
-        .copyright {
-            margin-top: 2rem;
-            padding-top: 1rem;
-            border-top: 1px solid #3c4043;
-            color: #9aa0a6;
-        }
-        
-        /* Modal Styles */
+
         .modal {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 10000;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
             align-items: center;
             justify-content: center;
+            z-index: 1000;
         }
-        
-        .modal.active {
-            display: flex;
+
+        .modal.active { display: flex; }
+
+        .modal-card {
+            width: min(560px, 95vw);
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px;
         }
-        
-        .modal-content {
-            background: white;
-            border-radius: 8px;
-            width: 90%;
-            max-width: 500px;
-            max-height: 90vh;
-            overflow-y: auto;
-            padding: 2rem;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+
+        .modal-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
         }
-        
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
+
+        .modal-grid .full { grid-column: 1 / -1; }
+
+        .modal label { display: block; font-weight: 600; margin-bottom: 5px; }
+        .modal input, .modal select, .modal textarea {
+            width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px;
         }
-        
-        .modal-title {
-            font-size: 1.5rem;
-            color: var(--dark);
-        }
-        
-        .modal-close {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: var(--gray);
-        }
-        
-        .modal-body {
-            margin-bottom: 2rem;
-        }
-        
-        .modal-footer {
+
+        .modal-actions {
+            margin-top: 12px;
             display: flex;
             justify-content: flex-end;
-            gap: 1rem;
+            gap: 8px;
         }
-        
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-        
-        .form-label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-            color: var(--dark);
-        }
-        
-        .form-control {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid var(--light-gray);
-            border-radius: 4px;
-            font-size: 1rem;
-            transition: border-color 0.3s;
-        }
-        
-        .form-control:focus {
-            outline: none;
-            border-color: var(--company-primary);
-        }
-        
-        /* Media Queries for Responsive Design */
-        @media (max-width: 1200px) {
-            .candidates-grid {
-                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            }
-            
-            .container {
-                padding: 0 1.5rem;
-            }
-            
-            .filter-toggle-btn {
-                display: flex;
-            }
-            
-            .candidates-content {
-                grid-template-columns: 1fr;
-            }
-            
-            .filters-sidebar {
-                position: fixed;
-                left: 0;
-                top: 0;
-                height: 100vh;
-                width: 320px;
-                z-index: 1001;
-                overflow-y: auto;
-                transform: translateX(-100%);
-                transition: transform 0.3s ease;
-                border-radius: 0;
-                padding-top: 80px;
-            }
-            
-            .filters-sidebar.active {
-                transform: translateX(0);
-                display: block;
-            }
-            
-            .filter-close-btn {
-                display: block;
-            }
-            
-            .filter-overlay {
-                display: none;
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.5);
-                z-index: 1000;
-            }
-            
-            .filter-overlay.active {
-                display: block;
-            }
-        }
-        
-        @media (max-width: 992px) {
-            .logo h1 {
-                font-size: 1.3rem;
-            }
-            
-            nav ul {
-                gap: 15px;
-            }
-            
-            .hero-text h1 {
-                font-size: 2rem;
-            }
-            
-            .stat-item {
-                min-width: 140px;
-            }
-        }
-        
-        @media (max-width: 768px) {
-            .header-content {
-                flex-wrap: wrap;
-            }
-            
-            .logo h1 {
-                font-size: 1.2rem;
-            }
-            
-            .hamburger-menu {
-                display: flex;
-            }
-            
-            nav {
-                display: none;
-            }
-            
-            .user-info {
-                display: none;
-            }
-            
-            .filter-toggle-btn {
-                width: 100%;
-                justify-content: center;
-                margin-bottom: 2rem;
-            }
-            
-            .hero-content {
-                flex-direction: column;
-                gap: 1.5rem;
-                text-align: center;
-            }
-            
-            .hero-text h1 {
-                font-size: 1.75rem;
-            }
-            
-            .hero-text p {
-                font-size: 0.95rem;
-            }
-            
-            .candidates-stats {
-                justify-content: center;
-                gap: 1rem;
-            }
-            
-            .stat-item {
-                min-width: 120px;
-                padding: 1rem;
-            }
-            
-            .stat-value {
-                font-size: 1.75rem;
-            }
-            
-            .section-title {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 1rem;
-            }
-            
-            .status-badges {
-                width: 100%;
-                justify-content: flex-start;
-            }
-            
-            .candidates-grid {
-                grid-template-columns: 1fr;
-                gap: 1.5rem;
-            }
-            
-            .candidate-card {
-                padding: 1.5rem;
-            }
-            
-            .candidate-avatar {
-                width: 60px;
-                height: 60px;
-                font-size: 1.3rem;
-            }
-            
-            .candidate-details h3 {
-                font-size: 1.1rem;
-            }
-            
-            .candidate-actions {
-                flex-direction: column;
-            }
-            
-            .action-btn {
-                width: 100%;
-                min-width: auto;
-            }
-            
-            .modal-content {
-                width: 95%;
-                padding: 1.5rem;
-            }
-            
-            .modal-title {
-                font-size: 1.2rem;
-            }
-        }
-        
-        @media (max-width: 576px) {
-            .container {
-                padding: 0 1rem;
-            }
-            
-            .logo h1 {
-                font-size: 1.1rem;
-            }
-            
-            .filter-toggle-btn {
-                width: 100%;
-                justify-content: center;
-                padding: 14px 20px;
-                font-size: 0.9rem;
-                margin-bottom: 2rem;
-            }
-            
-            .filters-sidebar {
-                width: 280px;
-                padding: 1rem;
-            }
-            
-            .hero-text h1 {
-                font-size: 1.5rem;
-            }
-            
-            .hero-text p {
-                font-size: 0.9rem;
-            }
-            
-            .candidates-stats {
-                flex-direction: column;
-                gap: 0.75rem;
-                width: 100%;
-            }
-            
-            .stat-item {
-                min-width: auto;
-                width: 100%;
-                padding: 1rem;
-            }
-            
-            .stat-value {
-                font-size: 1.5rem;
-            }
-            
-            .stat-label {
-                font-size: 0.85rem;
-            }
-            
-            .status-badge {
-                font-size: 0.75rem;
-                padding: 6px 12px;
-            }
-            
-            .candidate-card {
-                padding: 1.25rem;
-            }
-            
-            .candidate-info {
-                flex-direction: column;
-                text-align: center;
-            }
-            
-            .candidate-avatar {
-                width: 70px;
-                height: 70px;
-                margin: 0 auto;
-            }
-            
-            .candidate-details {
-                text-align: center;
-            }
-            
-            .skill-tag {
-                font-size: 0.75rem;
-                padding: 5px 12px;
-            }
-            
-            .candidate-footer {
-                flex-direction: column;
-                gap: 0.5rem;
-                text-align: center;
-            }
-            
-            .modal-content {
-                width: 98%;
-                padding: 1rem;
-                max-height: 85vh;
-            }
-            
-            .modal-footer {
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-            
-            .modal-footer .btn {
-                width: 100%;
-            }
-            
-            .filters-sidebar {
-                padding: 1rem;
-            }
-            
-            .action-btn {
-                font-size: 0.85rem;
-                padding: 10px 12px;
-            }
+
+        .btn-ghost {
+            background: #fff;
+            color: #333;
+            border: 1px solid #c9ced6;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-weight: 600;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
-    {% set page_title = "Candidates" %}
+    {% set page_title = 'Candidates' %}
     {% include 'company/navbar.html' %}
 
-    <section class="candidates-hero">
+    <section class="hero">
         <div class="container">
-            <div class="hero-content">
-                <div class="hero-text">
-                    <h1>Candidate Management</h1>
-                    <p>Review, shortlist, and manage all candidate applications across your internship programs.</p>
-                </div>
-                <div class="candidates-stats">
-                    <div class="stat-item">
-                        <div class="stat-value">147</div>
-                        <div class="stat-label">Total Candidates</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">32</div>
-                        <div class="stat-label">New Applications</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">23</div>
-                        <div class="stat-label">Shortlisted</div>
-                    </div>
-                </div>
+            <h1>Candidate Management</h1>
+            <p>Showing real applicants from your posted internships only.</p>
+            <div class="stats">
+                <div class="stat"><strong>{{ status_counts.get('all', 0) }}</strong>Total</div>
+                <div class="stat"><strong>{{ status_counts.get('pending', 0) + status_counts.get('new', 0) + status_counts.get('under_review', 0) }}</strong>Pending</div>
+                <div class="stat"><strong>{{ status_counts.get('shortlisted', 0) }}</strong>Shortlisted</div>
+                <div class="stat"><strong>{{ status_counts.get('interview_scheduled', 0) }}</strong>Interview</div>
+                <div class="stat"><strong>{{ status_counts.get('rejected', 0) }}</strong>Rejected</div>
             </div>
         </div>
     </section>
 
-    <section class="candidates-section">
-        <div class="container">
-            <div class="section-title">
-                <h2>All Candidates</h2>
-                <div class="status-badges">
-                    <span class="status-badge badge-new">New: 32</span>
-                    <span class="status-badge badge-review">Review: 45</span>
-                    <span class="status-badge badge-shortlisted">Shortlisted: 23</span>
-                    <span class="status-badge badge-interview">Interview: 15</span>
-                    <span class="status-badge badge-waitlisted">Waitlisted: 12</span>
-                </div>
-            </div>
-            
-            <!-- Filter Toggle Button -->
-            <button class="filter-toggle-btn" id="filterToggleBtn">
-                <i class="fas fa-filter"></i>
-                <span>Show Filters</span>
-            </button>
-            
-            <!-- Filter Overlay -->
-            <div class="filter-overlay" id="filterOverlay"></div>
-            
-            <div class="candidates-content">
-                <div class="filters-sidebar" id="filtersSidebar">
-                    <button class="filter-close-btn" id="filterCloseBtn">
-                        <i class="fas fa-times"></i>
-                    </button>
-                    <h3 style="margin-bottom: 1.5rem;">Filter Candidates</h3>
-                    
-                    <div class="status-filters">
-                        <div class="status-filter active" data-status="all">
-                            <div class="status-icon">📋</div>
-                            <span>All Candidates</span>
-                            <span class="status-count">147</span>
-                        </div>
-                        <div class="status-filter" data-status="new">
-                            <div class="status-icon status-new">🆕</div>
-                            <span>New Applications</span>
-                            <span class="status-count">32</span>
-                        </div>
-                        <div class="status-filter" data-status="review">
-                            <div class="status-icon status-review">🔍</div>
-                            <span>Under Review</span>
-                            <span class="status-count">45</span>
-                        </div>
-                        <div class="status-filter" data-status="shortlisted">
-                            <div class="status-icon status-shortlisted">⭐</div>
-                            <span>Shortlisted</span>
-                            <span class="status-count">23</span>
-                        </div>
-                        <div class="status-filter" data-status="interview">
-                            <div class="status-icon status-interview">💼</div>
-                            <span>Interview</span>
-                            <span class="status-count">15</span>
-                        </div>
-                        <div class="status-filter" data-status="waitlisted">
-                            <div class="status-icon status-waitlisted">⏳</div>
-                            <span>Waitlisted</span>
-                            <span class="status-count">12</span>
-                        </div>
-                        <div class="status-filter" data-status="rejected">
-                            <div class="status-icon status-rejected">❌</div>
-                            <span>Rejected</span>
-                            <span class="status-count">20</span>
-                        </div>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <div class="filter-title">
-                            <span>AI Match Score</span>
-                        </div>
-                        <input type="range" min="50" max="100" value="70" class="match-score-slider" id="match-score-slider">
-                        <div class="slider-value" id="slider-value">70%+</div>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <div class="filter-title">
-                            <span>Internship Position</span>
-                        </div>
-                        <div class="filter-options">
-                            <div class="filter-option">
-                                <input type="checkbox" id="position-ds" checked>
-                                <label for="position-ds">Data Science Intern</label>
-                            </div>
-                            <div class="filter-option">
-                                <input type="checkbox" id="position-ai" checked>
-                                <label for="position-ai">AI Research Assistant</label>
-                            </div>
-                            <div class="filter-option">
-                                <input type="checkbox" id="position-sde">
-                                <label for="position-sde">Software Development Intern</label>
-                            </div>
-                            <div class="filter-option">
-                                <input type="checkbox" id="position-marketing">
-                                <label for="position-marketing">Marketing Intern</label>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <div class="filter-title">
-                            <span>Education Level</span>
-                        </div>
-                        <div class="filter-options">
-                            <div class="filter-option">
-                                <input type="checkbox" id="edu-undergrad" checked>
-                                <label for="edu-undergrad">Undergraduate</label>
-                            </div>
-                            <div class="filter-option">
-                                <input type="checkbox" id="edu-graduate" checked>
-                                <label for="edu-graduate">Graduate</label>
-                            </div>
-                            <div class="filter-option">
-                                <input type="checkbox" id="edu-postgrad">
-                                <label for="edu-postgrad">Postgraduate</label>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <button class="btn" style="width: 100%; margin-top: 1rem;">Apply Filters</button>
-                    <button class="btn btn-outline" style="width: 100%; margin-top: 0.5rem;">Reset Filters</button>
-                </div>
-                
-                <div class="candidates-grid">
-                    <!-- New Application Candidate -->
-                    <div class="candidate-card new">
-                        <div class="candidate-header">
-                            <div class="candidate-status">New</div>
-                            <div class="match-value">92% Match</div>
-                        </div>
-                        
-                        <div class="candidate-info">
-                            <div class="candidate-avatar">RS</div>
-                            <div class="candidate-details">
-                                <h3>Rahul Sharma</h3>
-                                <p>Delhi Technological University</p>
-                                <p>B.Tech Computer Science, 3rd Year</p>
-                            </div>
-                        </div>
-                        
-                        <div class="candidate-match">
-                            <span>AI Match Score:</span>
-                            <div class="match-bar">
-                                <div class="match-fill" style="width: 92%"></div>
-                            </div>
-                        </div>
-                        
-                        <div class="candidate-skills">
-                            <div class="skill-tag">Python</div>
-                            <div class="skill-tag">Machine Learning</div>
-                            <div class="skill-tag">Data Analysis</div>
-                            <div class="skill-tag">SQL</div>
-                        </div>
-                        
-                        <div class="candidate-actions">
-                            <a href="{{ url_for('company_candidate_detail', candidate_id=1) }}" class="action-btn btn-view">View Profile</a>
-                            <button class="action-btn btn-shortlist" data-candidate="Rahul Sharma">Shortlist</button>
-                            <button class="action-btn btn-reject" data-candidate="Rahul Sharma">Reject</button>
-                        </div>
-                        
-                        <div class="candidate-footer">
-                            <span>Applied: 2 hours ago</span>
-                            <span>Data Science Intern</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Under Review Candidate -->
-                    <div class="candidate-card review">
-                        <div class="candidate-header">
-                            <div class="candidate-status">Under Review</div>
-                            <div class="match-value">87% Match</div>
-                        </div>
-                        
-                        <div class="candidate-info">
-                            <div class="candidate-avatar">PP</div>
-                            <div class="candidate-details">
-                                <h3>Priya Patel</h3>
-                                <p>IIT Bombay</p>
-                                <p>B.Tech Computer Science, 3rd Year</p>
-                            </div>
-                        </div>
-                        
-                        <div class="candidate-match">
-                            <span>AI Match Score:</span>
-                            <div class="match-bar">
-                                <div class="match-fill" style="width: 87%"></div>
-                            </div>
-                        </div>
-                        
-                        <div class="candidate-skills">
-                            <div class="skill-tag">Python</div>
-                            <div class="skill-tag">AI Research</div>
-                            <div class="skill-tag">TensorFlow</div>
-                            <div class="skill-tag">Data Visualization</div>
-                        </div>
-                        
-                        <div class="candidate-actions">
-                            <a href="{{ url_for('company_candidate_detail', candidate_id=2) }}" class="action-btn btn-view">View Profile</a>
-                            <button class="action-btn btn-shortlist" data-candidate="Priya Patel">Shortlist</button>
-                            <button class="action-btn btn-interview">Schedule Interview</button>
-                            <button class="action-btn btn-reject" data-candidate="Priya Patel">Reject</button>
-                        </div>
-                        
-                        <div class="candidate-footer">
-                            <span>Applied: 1 day ago</span>
-                            <span>AI Research Assistant</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Shortlisted Candidate -->
-                    <div class="candidate-card shortlisted">
-                        <div class="candidate-header">
-                            <div class="candidate-status">Shortlisted</div>
-                            <div class="match-value">95% Match</div>
-                        </div>
-                        
-                        <div class="candidate-info">
-                            <div class="candidate-avatar">AK</div>
-                            <div class="candidate-details">
-                                <h3>Amit Kumar</h3>
-                                <p>IIIT Hyderabad</p>
-                                <p>B.Tech CSE, Final Year</p>
-                            </div>
-                        </div>
-                        
-                        <div class="candidate-match">
-                            <span>AI Match Score:</span>
-                            <div class="match-bar">
-                                <div class="match-fill" style="width: 95%"></div>
-                            </div>
-                        </div>
-                        
-                        <div class="candidate-skills">
-                            <div class="skill-tag">Python</div>
-                            <div class="skill-tag">Deep Learning</div>
-                            <div class="skill-tag">PyTorch</div>
-                            <div class="skill-tag">Data Engineering</div>
-                            <div class="skill-tag">AWS</div>
-                        </div>
-                        
-                        <div class="candidate-actions">
-                            <a href="{{ url_for('company_candidate_detail', candidate_id=3) }}" class="action-btn btn-view">View Profile</a>
-                            <button class="action-btn btn-interview">Schedule Interview</button>
-                            <button class="action-btn btn-waitlist" data-candidate="Amit Kumar">Waitlist</button>
-                            <button class="action-btn btn-reject" data-candidate="Amit Kumar">Reject</button>
-                        </div>
-                        
-                        <div class="candidate-footer">
-                            <span>Shortlisted: 2 days ago</span>
-                            <span>Data Science Intern</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Interview Candidate -->
-                    <div class="candidate-card interview">
-                        <div class="candidate-header">
-                            <div class="candidate-status">Interview</div>
-                            <div class="match-value">89% Match</div>
-                        </div>
-                        
-                        <div class="candidate-info">
-                            <div class="candidate-avatar">SN</div>
-                            <div class="candidate-details">
-                                <h3>Simran Nair</h3>
-                                <p>BITS Pilani</p>
-                                <p>M.Sc. Data Science, 1st Year</p>
-                            </div>
-                        </div>
-                        
-                        <div class="candidate-match">
-                            <span>AI Match Score:</span>
-                            <div class="match-bar">
-                                <div class="match-fill" style="width: 89%"></div>
-                            </div>
-                        </div>
-                        
-                        <div class="candidate-skills">
-                            <div class="skill-tag">R</div>
-                            <div class="skill-tag">Statistics</div>
-                            <div class="skill-tag">Data Mining</div>
-                            <div class="skill-tag">Tableau</div>
-                        </div>
-                        
-                        <div class="candidate-actions">
-                            <a href="{{ url_for('company_candidate_detail', candidate_id=4) }}" class="action-btn btn-view">View Profile</a>
-                            <button class="action-btn btn-shortlist" data-candidate="Simran Nair">Move to Offer</button>
-                            <button class="action-btn btn-waitlist" data-candidate="Simran Nair">Waitlist</button>
-                            <button class="action-btn btn-reject" data-candidate="Simran Nair">Reject</button>
-                        </div>
-                        
-                        <div class="candidate-footer">
-                            <span>Interview: Tomorrow</span>
-                            <span>Data Science Intern</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Waitlisted Candidate -->
-                    <div class="candidate-card waitlisted">
-                        <div class="candidate-header">
-                            <div class="candidate-status">Waitlisted</div>
-                            <div class="match-value">78% Match</div>
-                        </div>
-                        
-                        <div class="candidate-info">
-                            <div class="candidate-avatar">RJ</div>
-                            <div class="candidate-details">
-                                <h3>Rohan Joshi</h3>
-                                <p>NIT Trichy</p>
-                                <p>B.Tech IT, Final Year</p>
-                            </div>
-                        </div>
-                        
-                        <div class="candidate-match">
-                            <span>AI Match Score:</span>
-                            <div class="match-bar">
-                                <div class="match-fill" style="width: 78%"></div>
-                            </div>
-                        </div>
-                        
-                        <div class="candidate-skills">
-                            <div class="skill-tag">Java</div>
-                            <div class="skill-tag">Spring Boot</div>
-                            <div class="skill-tag">MySQL</div>
-                            <div class="skill-tag">REST APIs</div>
-                        </div>
-                        
-                        <div class="candidate-actions">
-                            <a href="{{ url_for('company_candidate_detail', candidate_id=5) }}" class="action-btn btn-view">View Profile</a>
-                            <button class="action-btn btn-shortlist" data-candidate="Rohan Joshi">Shortlist</button>
-                            <button class="action-btn btn-reject" data-candidate="Rohan Joshi">Reject</button>
-                        </div>
-                        
-                        <div class="candidate-footer">
-                            <span>Waitlisted: 1 week ago</span>
-                            <span>Software Development Intern</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Rejected Candidate -->
-                    <div class="candidate-card rejected">
-                        <div class="candidate-header">
-                            <div class="candidate-status">Rejected</div>
-                            <div class="match-value">65% Match</div>
-                        </div>
-                        
-                        <div class="candidate-info">
-                            <div class="candidate-avatar">MG</div>
-                            <div class="candidate-details">
-                                <h3>Meera Gupta</h3>
-                                <p>University of Delhi</p>
-                                <p>B.Com, 2nd Year</p>
-                            </div>
-                        </div>
-                        
-                        <div class="candidate-match">
-                            <span>AI Match Score:</span>
-                            <div class="match-bar">
-                                <div class="match-fill" style="width: 65%"></div>
-                            </div>
-                        </div>
-                        
-                        <div class="candidate-skills">
-                            <div class="skill-tag">Excel</div>
-                            <div class="skill-tag">Market Research</div>
-                            <div class="skill-tag">Communication</div>
-                        </div>
-                        
-                        <div class="candidate-actions">
-                            <a href="{{ url_for('company_candidate_detail', candidate_id=6) }}" class="action-btn btn-view">View Profile</a>
-                            <button class="action-btn btn-shortlist" data-candidate="Meera Gupta">Reconsider</button>
-                        </div>
-                        
-                        <div class="candidate-footer">
-                            <span>Rejected: 3 days ago</span>
-                            <span>Marketing Intern</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="view-all">
-                <button class="btn btn-outline">Load More Candidates</button>
-            </div>
+    <main class="container">
+        <div class="controls">
+            <input id="searchInput" type="text" placeholder="Search by name, email, internship..." oninput="applyFilters()">
+            <select id="statusFilter" onchange="applyFilters()">
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="shortlisted">Shortlisted</option>
+                <option value="interview_scheduled">Interview Scheduled</option>
+                <option value="rejected">Rejected</option>
+            </select>
         </div>
-    </section>
 
-    <!-- Status Update Modal -->
-    <div class="modal" id="statusModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Update Candidate Status</h3>
-                <button class="modal-close" id="closeModal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p>Update status for <strong id="candidateName"></strong>:</p>
-                <div class="form-group">
-                    <label class="form-label">New Status</label>
-                    <select class="form-control" id="statusSelect">
-                        <option value="new">New Application</option>
-                        <option value="review">Under Review</option>
-                        <option value="shortlisted">Shortlisted</option>
-                        <option value="interview">Interview</option>
-                        <option value="waitlisted">Waitlisted</option>
-                        <option value="rejected">Rejected</option>
-                        <option value="offer">Offer Extended</option>
+        {% if applications %}
+        <div class="grid" id="candidateGrid">
+            {% for item in applications %}
+            <article class="card candidate-row"
+                     data-status="{{ item.status }}"
+                     data-search="{{ (item.full_name ~ ' ' ~ item.email ~ ' ' ~ item.internship_title)|lower }}">
+                <div class="top">
+                    <span class="status {{ item.status }}">{{ item.status.replace('_', ' ').title() }}</span>
+                    {% if item.match_score and item.match_score > 0 %}
+                    <strong>{{ '%.0f'|format(item.match_score) }}% Match</strong>
+                    {% endif %}
+                </div>
+
+                <h3 class="name">{{ item.full_name }}</h3>
+                <p class="meta">{{ item.email or 'No email provided' }}</p>
+                <p class="meta">{{ item.university or '-' }}{% if item.qualification %} - {{ item.qualification }}{% endif %}</p>
+                <p class="meta">Applied for: {{ item.internship_title }}</p>
+                <p class="meta">Applied at: {{ (item.applied_date or '')[:10] if item.applied_date else '-' }}</p>
+
+                {% if item.skills %}
+                <div class="skills">
+                    {% for skill in item.skills[:5] %}
+                    <span class="skill">{{ skill }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="actions">
+                    {% if item.user_id %}
+                    <a class="btn btn-view" href="{{ url_for('company_candidate_detail', candidate_id=item.user_id|int) }}">View Profile</a>
+                    {% else %}
+                    <button class="btn btn-view" disabled>View Profile</button>
+                    {% endif %}
+                    <button class="btn btn-shortlist" onclick="updateStatus('{{ item.application_id }}', 'shortlisted')">Shortlist</button>
+                    <button class="btn btn-interview" onclick="openInterviewModal('{{ item.application_id }}', '{{ item.full_name|e }}')">Schedule Interview</button>
+                    <button class="btn btn-reject" onclick="updateStatus('{{ item.application_id }}', 'rejected')">Reject</button>
+                    {% if item.interview_details and item.interview_details.join_url %}
+                    <a class="btn btn-interview" href="{{ item.interview_details.join_url }}">Join Interview</a>
+                    {% elif item.status in ['interview_scheduled', 'interview_completed'] and item.application_id %}
+                    <button class="btn btn-interview" onclick="openInterviewRoom('{{ item.application_id }}')">Join Interview</button>
+                    {% endif %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty">
+            <h3>No real candidates found yet</h3>
+            <p>Candidates will appear here after they apply to your internships.</p>
+        </div>
+        {% endif %}
+    </main>
+
+    <div class="modal" id="interviewModal">
+        <div class="modal-card">
+            <h3 style="margin-top:0;">Schedule Interview</h3>
+            <p id="interviewCandidate" style="margin-top:0;color:#555;"></p>
+            <input type="hidden" id="interviewAppId">
+            <div class="modal-grid">
+                <div>
+                    <label>Date & Time</label>
+                    <input type="datetime-local" id="interviewDate">
+                </div>
+                <div>
+                    <label>Interviewer Type</label>
+                    <select id="interviewerRole">
+                        <option value="technical">Technical</option>
+                        <option value="non_technical">Non-Technical</option>
+                        <option value="hr">HR</option>
+                        <option value="managerial">Managerial</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Notes (Optional)</label>
-                    <textarea class="form-control" id="statusNotes" rows="3" placeholder="Add any notes about this status change..."></textarea>
+                <div class="full">
+                    <label>In-App Interview Room</label>
+                    <input type="text" id="meetingLink" value="Auto-generated internal room" readonly>
+                </div>
+                <div>
+                    <label>Interviewer Name</label>
+                    <input type="text" id="interviewerName" placeholder="Interviewer name">
+                </div>
+                <div>
+                    <label>Interviewer Email</label>
+                    <input type="email" id="interviewerEmail" placeholder="interviewer@company.com">
+                </div>
+                <div class="full">
+                    <label>Notes</label>
+                    <textarea id="interviewNotes" rows="3" placeholder="Optional interview instructions"></textarea>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline" id="cancelStatus">Cancel</button>
-                <button class="btn" id="confirmStatus">Update Status</button>
+            <div class="modal-actions">
+                <button class="btn-ghost" onclick="closeInterviewModal()">Cancel</button>
+                <button class="btn btn-interview" onclick="scheduleInterviewSubmit()">Schedule</button>
             </div>
         </div>
     </div>
 
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h3>PM Internship Scheme</h3>
-                    <p>Connecting talented students with innovative companies for meaningful internship experiences.</p>
-                </div>
-                <div class="footer-section">
-                    <h3>Quick Links</h3>
-                    <a href="{{ url_for('company_home') }}">Dashboard</a>
-                    <a href="{{ url_for('company_internships') }}">Internships</a>
-                    <a href="{{ url_for('company_candidates') }}">Candidates</a>
-                    <a href="{{ url_for('company_analytics') }}">Analytics</a>
-                </div>
-                <div class="footer-section">
-                    <h3>Support</h3>
-                    <a href="{{ url_for('company_home') }}">Help Center</a>
-                    <a href="{{ url_for('company_profile') }}">Contact Us</a>
-                    <a href="{{ url_for('company_profile') }}">Privacy Policy</a>
-                    <a href="{{ url_for('company_home') }}">Terms of Service</a>
-                </div>
-            </div>
-            <div class="copyright">
-                <p>&copy; 2024 PM Internship Scheme. All rights reserved.</p>
-            </div>
-        </div>
-    </footer>
-
     <script>
-        // Filter Toggle Functionality
-        const filterToggleBtn = document.getElementById('filterToggleBtn');
-        const filtersSidebar = document.getElementById('filtersSidebar');
-        const filterOverlay = document.getElementById('filterOverlay');
-        const filterCloseBtn = document.getElementById('filterCloseBtn');
-        
-        function openFilters() {
-            filtersSidebar.classList.add('active');
-            filterOverlay.classList.add('active');
+        function toast(msg) {
+            alert(msg);
         }
-        
-        function closeFilters() {
-            filtersSidebar.classList.remove('active');
-            filterOverlay.classList.remove('active');
-        }
-        
-        if (filterToggleBtn) {
-            filterToggleBtn.addEventListener('click', openFilters);
-        }
-        
-        if (filterCloseBtn) {
-            filterCloseBtn.addEventListener('click', closeFilters);
-        }
-        
-        if (filterOverlay) {
-            filterOverlay.addEventListener('click', closeFilters);
-        }
-        
-        // Close filters when a filter is selected (on mobile)
-        const statusFiltersForClose = document.querySelectorAll('.status-filter');
-        statusFiltersForClose.forEach(filter => {
-            filter.addEventListener('click', function() {
-                if (window.innerWidth <= 1200) {
-                    closeFilters();
-                }
-            });
-        });
-        
-        // Mobile Navigation Toggle
-        const hamburgerMenu = document.querySelector('.hamburger-menu');
-        const mobileNav = document.querySelector('.mobile-nav');
-        
-        hamburgerMenu.addEventListener('click', function() {
-            this.classList.toggle('active');
-            mobileNav.classList.toggle('active');
-        });
-        
-        // Status Filter Functionality
-        const statusFilters = document.querySelectorAll('.status-filter');
-        
-        statusFilters.forEach(filter => {
-            filter.addEventListener('click', function() {
-                // Remove active class from all filters
-                statusFilters.forEach(f => f.classList.remove('active'));
-                // Add active class to clicked filter
-                this.classList.add('active');
-                
-                const status = this.getAttribute('data-status');
-                filterCandidates(status);
-            });
-        });
-        
-        // Candidate Filtering Function
-        function filterCandidates(status) {
-            const candidateCards = document.querySelectorAll('.candidate-card');
-            
-            candidateCards.forEach(card => {
-                if (status === 'all') {
-                    card.style.display = 'block';
-                } else {
-                    if (card.classList.contains(status)) {
-                        card.style.display = 'block';
-                    } else {
-                        card.style.display = 'none';
-                    }
-                }
+
+        function applyFilters() {
+            const q = (document.getElementById('searchInput').value || '').toLowerCase();
+            const status = document.getElementById('statusFilter').value;
+            const rows = document.querySelectorAll('.candidate-row');
+            rows.forEach((row) => {
+                const rowSearch = row.getAttribute('data-search') || '';
+                const rowStatus = row.getAttribute('data-status') || '';
+                const okSearch = !q || rowSearch.includes(q);
+                const okStatus = status === 'all' || rowStatus === status || (status === 'pending' && ['new','pending','under_review'].includes(rowStatus));
+                row.style.display = okSearch && okStatus ? '' : 'none';
             });
         }
-        
-        // Match Score Slider
-        const matchSlider = document.getElementById('match-score-slider');
-        const sliderValue = document.getElementById('slider-value');
-        
-        matchSlider.addEventListener('input', function() {
-            sliderValue.textContent = `${this.value}%+`;
-            filterByMatchScore(this.value);
-        });
-        
-        // Filter by Match Score
-        function filterByMatchScore(minScore) {
-            const candidateCards = document.querySelectorAll('.candidate-card');
-            
-            candidateCards.forEach(card => {
-                const matchValueElement = card.querySelector('.match-value');
-                if (matchValueElement) {
-                    const matchValue = parseInt(matchValueElement.textContent);
-                    if (matchValue >= minScore) {
-                        card.style.display = 'block';
-                    } else {
-                        card.style.display = 'none';
-                    }
-                }
-            });
-        }
-        
-        // Status Update Modal
-        const statusModal = document.getElementById('statusModal');
-        const closeModal = document.getElementById('closeModal');
-        const cancelStatus = document.getElementById('cancelStatus');
-        let currentCandidate = '';
-        
-        // Function to open status modal
-        function openStatusModal(candidateName) {
-            currentCandidate = candidateName;
-            document.getElementById('candidateName').textContent = candidateName;
-            statusModal.classList.add('active');
-        }
-        
-        // Function to close status modal
-        function closeStatusModal() {
-            statusModal.classList.remove('active');
-            document.getElementById('statusNotes').value = '';
-        }
-        
-        // Event listeners for modal
-        closeModal.addEventListener('click', closeStatusModal);
-        cancelStatus.addEventListener('click', closeStatusModal);
-        
-        // Confirm status update
-        document.getElementById('confirmStatus').addEventListener('click', function() {
-            const newStatus = document.getElementById('statusSelect').value;
-            const notes = document.getElementById('statusNotes').value;
-            
-            // In a real application, you would send this data to a server
-            console.log(`Updating ${currentCandidate} to status: ${newStatus}`);
-            if (notes) {
-                console.log(`Notes: ${notes}`);
-            }
-            
-            // Close modal and show confirmation
-            closeStatusModal();
-            alert(`Status updated for ${currentCandidate}`);
-        });
-        
-        // Action button event listeners
-        document.querySelectorAll('.btn-shortlist, .btn-interview, .btn-waitlist, .btn-reject').forEach(button => {
-            button.addEventListener('click', function() {
-                const candidateName = this.getAttribute('data-candidate');
-                openStatusModal(candidateName);
-                
-                // Pre-select appropriate status based on button clicked
-                if (this.classList.contains('btn-shortlist')) {
-                    document.getElementById('statusSelect').value = 'shortlisted';
-                } else if (this.classList.contains('btn-interview')) {
-                    document.getElementById('statusSelect').value = 'interview';
-                } else if (this.classList.contains('btn-waitlist')) {
-                    document.getElementById('statusSelect').value = 'waitlisted';
-                } else if (this.classList.contains('btn-reject')) {
-                    document.getElementById('statusSelect').value = 'rejected';
-                }
-            });
-        });
-        
-        // View Profile buttons (for remaining buttons that are still buttons)
-        document.querySelectorAll('.btn-view').forEach(button => {
-            if (button.tagName === 'BUTTON') {
-                button.addEventListener('click', function() {
-                    // Navigate to candidate profile page
-                    window.location.href = '/company/candidate/1';
+
+        async function updateStatus(applicationId, status) {
+            try {
+                const response = await fetch('/api/company/update_application_status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ application_id: applicationId, status })
                 });
+                const result = await response.json();
+                if (!result.success) {
+                    toast(result.message || 'Status update failed');
+                    return;
+                }
+                window.location.reload();
+            } catch (error) {
+                toast('Network error while updating status');
             }
-        });
-        
-        // Apply Filters button
-        document.querySelector('.filters-sidebar .btn').addEventListener('click', function() {
-            // Get selected filters
-            const selectedPositions = [];
-            document.querySelectorAll('.filter-option input[type="checkbox"]:checked').forEach(checkbox => {
-                selectedPositions.push(checkbox.nextElementSibling.textContent);
-            });
-            
-            // In a real application, you would apply all filters here
-            alert(`Filters applied!\nPositions: ${selectedPositions.join(', ')}\nMatch Score: ${matchSlider.value}%+`);
-        });
-        
-        // Reset Filters button
-        document.querySelector('.filters-sidebar .btn-outline').addEventListener('click', function() {
-            // Reset all checkboxes
-            document.querySelectorAll('.filter-option input[type="checkbox"]').forEach(checkbox => {
-                checkbox.checked = true;
-            });
-            
-            // Reset slider
-            matchSlider.value = 70;
-            sliderValue.textContent = '70%+';
-            
-            // Reset status filter
-            statusFilters.forEach(f => f.classList.remove('active'));
-            document.querySelector('.status-filter[data-status="all"]').classList.add('active');
-            
-            // Show all candidates
-            filterCandidates('all');
-            
-            alert('All filters have been reset');
-        });
-        
-        // Load More button
-        document.querySelector('.view-all .btn').addEventListener('click', function() {
-            // In a real application, this would load more candidates from the server
-            alert('Loading more candidates...');
-        });
-        
-        // Close modal when clicking outside
-        window.addEventListener('click', function(event) {
-            if (event.target === statusModal) {
-                closeStatusModal();
+        }
+
+        function openInterviewModal(applicationId, candidateName) {
+            document.getElementById('interviewAppId').value = applicationId;
+            document.getElementById('interviewCandidate').textContent = 'Candidate: ' + candidateName;
+            document.getElementById('interviewDate').value = '';
+            document.getElementById('meetingLink').value = '';
+            document.getElementById('interviewerName').value = '';
+            document.getElementById('interviewerEmail').value = '';
+            document.getElementById('interviewNotes').value = '';
+            document.getElementById('interviewModal').classList.add('active');
+        }
+
+        function closeInterviewModal() {
+            document.getElementById('interviewModal').classList.remove('active');
+        }
+
+        async function scheduleInterviewSubmit() {
+            const appId = document.getElementById('interviewAppId').value;
+            const interviewDate = document.getElementById('interviewDate').value;
+            const interviewerRole = document.getElementById('interviewerRole').value;
+            const interviewerName = document.getElementById('interviewerName').value.trim();
+            const interviewerEmail = document.getElementById('interviewerEmail').value.trim();
+            const interviewNotes = document.getElementById('interviewNotes').value.trim();
+
+            if (!appId || appId === 'None' || appId === 'undefined' || appId === 'null') {
+                toast('Invalid application id. Please refresh candidates page and try again.');
+                return;
+            }
+
+            if (!interviewDate) {
+                toast('Interview date and time is required');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/company/applications/${appId}/schedule-interview`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        interview_date: interviewDate,
+                        interviewer_role: interviewerRole,
+                        interviewer_name: interviewerName,
+                        interviewer_email: interviewerEmail,
+                        communication_mode: 'in_app',
+                        meeting_link: '',
+                        interview_notes_text: interviewNotes,
+                        duration_minutes: 30,
+                        interview_type: 'in_app'
+                    })
+                });
+
+                let result = null;
+                try {
+                    result = await response.json();
+                } catch (_parseError) {
+                    toast(`Scheduling failed (${response.status}). Please retry.`);
+                    return;
+                }
+
+                if (!response.ok) {
+                    toast(result.message || `Scheduling failed (${response.status})`);
+                    return;
+                }
+                if (!result.success) {
+                    toast(result.message || 'Failed to schedule interview');
+                    return;
+                }
+                window.location.reload();
+            } catch (error) {
+                toast('Network error while scheduling interview');
+            }
+        }
+
+        async function openInterviewRoom(applicationId) {
+            if (!applicationId || applicationId === 'None' || applicationId === 'undefined' || applicationId === 'null') {
+                toast('Invalid interview application id. Please refresh and retry.');
+                return;
+            }
+            try {
+                const response = await fetch(`/api/company/applications/${applicationId}/interview-room`);
+                let result = null;
+                try {
+                    result = await response.json();
+                } catch (_parseError) {
+                    toast(`Unable to open room (${response.status}).`);
+                    return;
+                }
+                if (!response.ok || !result.success || !result.join_url) {
+                    toast(result.message || 'Could not open interview room.');
+                    return;
+                }
+                const joinUrl = result.join_url.includes('role=')
+                    ? result.join_url
+                    : `${result.join_url}${result.join_url.includes('?') ? '&' : '?'}role=company`;
+                window.location.href = joinUrl;
+            } catch (_error) {
+                toast('Network error while opening interview room.');
+            }
+        }
+
+        window.addEventListener('click', function (event) {
+            const modal = document.getElementById('interviewModal');
+            if (event.target === modal) {
+                closeInterviewModal();
             }
         });
     </script>
