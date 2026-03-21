@@ -53,7 +53,54 @@
             padding: 12px;
         }
         .panel h4 { margin: 0 0 8px; font-size: 0.9rem; }
+        .permission-status {
+            margin-top: 8px;
+            font-size: 0.78rem;
+            color: #cbd5e1;
+            line-height: 1.35;
+        }
+        .permission-status.ok { color: #86efac; }
+        .permission-status.warn { color: #fcd34d; }
+        .permission-status.error { color: #fca5a5; }
         .metric { font-size: 0.82rem; margin: 5px 0; }
+        .insight-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .insight-chip {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 6px;
+            font-size: 0.74rem;
+            color: #cbd5e1;
+            background: rgba(15, 23, 42, 0.35);
+        }
+        .insight-chip strong {
+            display: block;
+            color: #e2e8f0;
+            font-size: 0.82rem;
+            margin-top: 2px;
+        }
+        .alert-list {
+            margin: 8px 0 0;
+            padding-left: 16px;
+            color: #fecaca;
+            font-size: 0.76rem;
+        }
+        .timeline-list {
+            margin: 8px 0 0;
+            padding-left: 16px;
+            max-height: 160px;
+            overflow-y: auto;
+            font-size: 0.76rem;
+            color: #cbd5e1;
+        }
+        .timeline-list li {
+            margin-bottom: 6px;
+            line-height: 1.3;
+        }
         .question-list {
             margin: 0;
             padding-left: 18px;
@@ -137,6 +184,7 @@
             <div class="panel">
                 <h4>Local Camera Preview</h4>
                 <video id="localPreview" autoplay muted playsinline></video>
+                <div id="permissionStatus" class="permission-status">Checking camera/microphone support...</div>
                 <div class="actions">
                     <button class="btn primary" onclick="startCamera()">Start Camera</button>
                     <button class="btn danger" onclick="stopCamera()">Stop Camera</button>
@@ -148,9 +196,27 @@
                 <div class="metric"><span id="faceDot" class="dot"></span> Face Detected: <span id="faceMetric">No</span></div>
                 <div class="metric"><span id="focusDot" class="dot ok"></span> Tab Active: <span id="focusMetric">Yes</span></div>
                 <div class="metric"><span id="cameraDot" class="dot"></span> Camera Active: <span id="cameraMetric">No</span></div>
+                <div class="metric">Expression State: <span id="expressionMetric">unknown</span></div>
+                <div class="metric">Movement Intensity: <span id="movementMetric">0.00</span></div>
                 <div class="metric">Focus Loss Count: <span id="focusLossCount">0</span></div>
                 <div class="metric">No-Face Count: <span id="noFaceCount">0</span></div>
             </div>
+
+            {% if can_view_question_assist %}
+            <div class="panel">
+                <h4>Candidate Behavioral Insights</h4>
+                <p id="candidateBehaviorStatus" class="muted">Waiting for candidate signals...</p>
+                <div class="insight-grid">
+                    <div class="insight-chip">Engagement<strong id="engagementScore">--</strong></div>
+                    <div class="insight-chip">Face Presence<strong id="faceRate">--</strong></div>
+                    <div class="insight-chip">Focus Rate<strong id="focusRate">--</strong></div>
+                    <div class="insight-chip">Movement<strong id="movementRate">--</strong></div>
+                </div>
+                <div class="muted" style="margin-top:8px;">Dominant expression: <strong id="dominantExpression">--</strong></div>
+                <ul id="behaviorAlertList" class="alert-list"></ul>
+                <ol id="behaviorTimeline" class="timeline-list"></ol>
+            </div>
+            {% endif %}
 
             {% if can_view_question_assist %}
             <div class="panel">
@@ -208,11 +274,62 @@
         let tabActive = true;
         let focusLossCount = 0;
         let noFaceCount = 0;
+        let movementIntensity = 0;
+        let expressionState = 'unknown';
+        let previousFaceSample = null;
+        let headMovementScore = 0;
+        let eyeMovementScore = 0;
+        let lastInterviewerPopupAt = 0;
+
+        function setPermissionStatus(message, level = 'warn') {
+            const node = document.getElementById('permissionStatus');
+            if (!node) return;
+            node.textContent = message;
+            node.className = `permission-status ${level}`;
+        }
+
+        async function updatePermissionStatus() {
+            if (!window.isSecureContext) {
+                setPermissionStatus('Camera permissions require HTTPS or localhost. Open this app on https:// or localhost.', 'error');
+                return;
+            }
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                setPermissionStatus('This browser does not support camera access APIs.', 'error');
+                return;
+            }
+
+            try {
+                if (navigator.permissions && navigator.permissions.query) {
+                    const cam = await navigator.permissions.query({ name: 'camera' });
+                    const mic = await navigator.permissions.query({ name: 'microphone' });
+                    const camState = cam?.state || 'prompt';
+                    const micState = mic?.state || 'prompt';
+
+                    if (camState === 'denied' && micState === 'denied') {
+                        setPermissionStatus('Camera and microphone are blocked. Allow both in browser site settings.', 'error');
+                    } else if (camState === 'denied') {
+                        setPermissionStatus('Camera is blocked in browser permissions. Allow camera for interview video.', 'error');
+                    } else if (micState === 'denied') {
+                        setPermissionStatus('Microphone is blocked. Video can still work, but audio will be unavailable.', 'warn');
+                    } else if (camState === 'granted' || micState === 'granted') {
+                        setPermissionStatus('Media permissions ready. Click Start Camera.', 'ok');
+                    } else {
+                        setPermissionStatus('Browser will ask for camera/microphone when you start.', 'warn');
+                    }
+                } else {
+                    setPermissionStatus('Click Start Camera and allow permissions in your browser prompt.', 'warn');
+                }
+            } catch (_permError) {
+                setPermissionStatus('Click Start Camera and allow permissions in your browser prompt.', 'warn');
+            }
+        }
 
         function updateMetricUI() {
             document.getElementById('faceMetric').textContent = faceDetected ? 'Yes' : 'No';
             document.getElementById('focusMetric').textContent = tabActive ? 'Yes' : 'No';
             document.getElementById('cameraMetric').textContent = cameraActive ? 'Yes' : 'No';
+            document.getElementById('expressionMetric').textContent = expressionState;
+            document.getElementById('movementMetric').textContent = Number(movementIntensity || 0).toFixed(2);
             document.getElementById('focusLossCount').textContent = String(focusLossCount);
             document.getElementById('noFaceCount').textContent = String(noFaceCount);
 
@@ -221,15 +338,92 @@
             document.getElementById('cameraDot').className = `dot ${cameraActive ? 'ok' : ''}`;
         }
 
-        async function startCamera() {
+        function clamp01(value) {
+            const n = Number(value || 0);
+            if (Number.isNaN(n)) return 0;
+            return Math.max(0, Math.min(1, n));
+        }
+
+        function detectExpressionState() {
+            if (!cameraActive || !faceDetected) return 'no_face';
+            if (!tabActive) return 'distracted';
+            if (movementIntensity > 0.55) return 'restless';
+            if (movementIntensity < 0.07) return 'still';
+            return 'engaged';
+        }
+
+        async function startCamera(silent = false) {
+            if (!window.isSecureContext) {
+                setPermissionStatus('Blocked: camera access requires HTTPS or localhost.', 'error');
+                if (!silent) {
+                    alert('Camera is blocked because this page is not in a secure context (HTTPS/localhost).');
+                }
+                return;
+            }
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                setPermissionStatus('Blocked: browser does not support media devices API.', 'error');
+                if (!silent) {
+                    alert('Your browser does not support camera access for this interview room.');
+                }
+                return;
+            }
+
+            if (localStream) {
+                stopCamera();
+            }
+
+            const mediaProfiles = [
+                {
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: { ideal: 'user' } },
+                    audio: false,
+                },
+                {
+                    video: { width: { ideal: 640 }, height: { ideal: 480 } },
+                    audio: false,
+                },
+                {
+                    video: true,
+                    audio: false,
+                },
+            ];
+
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                let lastError = null;
+                for (const profile of mediaProfiles) {
+                    try {
+                        localStream = await navigator.mediaDevices.getUserMedia(profile);
+                        lastError = null;
+                        break;
+                    } catch (profileError) {
+                        lastError = profileError;
+                    }
+                }
+
+                if (!localStream && lastError) {
+                    throw lastError;
+                }
+
                 const localPreview = document.getElementById('localPreview');
                 localPreview.srcObject = localStream;
-                cameraActive = true;
+                cameraActive = localStream.getVideoTracks().length > 0;
+                setPermissionStatus('Camera connected for local behavior analysis.', 'ok');
                 updateMetricUI();
             } catch (error) {
-                alert('Camera access failed. Please allow camera/mic permissions.');
+                const errName = String(error?.name || 'UnknownError');
+                const errMsg = String(error?.message || 'Permission request failed');
+                if (errName === 'NotReadableError' || errName === 'TrackStartError') {
+                    setPermissionStatus('Camera device is busy. Close other apps using camera and retry.', 'error');
+                } else if (errName === 'NotAllowedError') {
+                    setPermissionStatus('Camera permission denied. Allow camera access in browser site settings.', 'error');
+                } else if (errName === 'OverconstrainedError') {
+                    setPermissionStatus('Camera constraints not supported on this device. Retry with default camera.', 'error');
+                } else {
+                    setPermissionStatus(`Camera start failed: ${errName}. Check browser site permissions.`, 'error');
+                }
+
+                if (!silent) {
+                    alert(`Camera access failed (${errName}). ${errMsg}`);
+                }
                 cameraActive = false;
                 updateMetricUI();
             }
@@ -244,6 +438,12 @@
             localPreview.srcObject = null;
             cameraActive = false;
             faceDetected = false;
+            movementIntensity = 0;
+            headMovementScore = 0;
+            eyeMovementScore = 0;
+            expressionState = 'unknown';
+            previousFaceSample = null;
+            setPermissionStatus('Camera stopped.', 'warn');
             updateMetricUI();
         }
 
@@ -259,17 +459,62 @@
                     const detector = new FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
                     const faces = await detector.detect(document.getElementById('localPreview'));
                     faceDetected = Array.isArray(faces) && faces.length > 0;
+
+                    if (faceDetected) {
+                        const face = faces[0];
+                        const box = face && face.boundingBox ? face.boundingBox : null;
+                        const preview = document.getElementById('localPreview');
+                        if (box && preview) {
+                            const vw = preview.videoWidth || 640;
+                            const vh = preview.videoHeight || 480;
+                            const centerX = (Number(box.x || 0) + Number(box.width || 0) / 2) / vw;
+                            const centerY = (Number(box.y || 0) + Number(box.height || 0) / 2) / vh;
+                            const area = (Number(box.width || 0) * Number(box.height || 0)) / (vw * vh);
+
+                            if (previousFaceSample) {
+                                const dx = centerX - previousFaceSample.centerX;
+                                const dy = centerY - previousFaceSample.centerY;
+                                const dArea = area - previousFaceSample.area;
+                                const centerMotion = Math.sqrt(dx * dx + dy * dy) * 2.5;
+                                const sizeMotion = Math.abs(dArea) * 8;
+                                movementIntensity = clamp01((centerMotion * 0.75) + (sizeMotion * 0.25));
+
+                                // Head movement proxy: larger whole-face displacement / size shift.
+                                headMovementScore = clamp01((Math.abs(dx) * 1.8) + (Math.abs(dy) * 1.8) + (Math.abs(dArea) * 7.0));
+
+                                // Eye movement proxy: quick horizontal jitter while face size remains relatively stable.
+                                const stableFaceFactor = clamp01(1.0 - Math.min(1, Math.abs(dArea) * 20));
+                                eyeMovementScore = clamp01(Math.abs(dx) * 6.5 * stableFaceFactor);
+                            } else {
+                                movementIntensity = 0.05;
+                                headMovementScore = 0.05;
+                                eyeMovementScore = 0.05;
+                            }
+
+                            previousFaceSample = { centerX, centerY, area, t: Date.now() };
+                        }
+                    } else {
+                        previousFaceSample = null;
+                        movementIntensity = clamp01(movementIntensity * 0.5);
+                        headMovementScore = clamp01(headMovementScore * 0.5);
+                        eyeMovementScore = clamp01(eyeMovementScore * 0.5);
+                    }
                 } else {
                     // Fallback heuristic when FaceDetector API is unavailable.
                     faceDetected = true;
+                    movementIntensity = clamp01(movementIntensity * 0.8 + 0.1);
+                    headMovementScore = clamp01(headMovementScore * 0.8 + 0.08);
+                    eyeMovementScore = clamp01(eyeMovementScore * 0.8 + 0.08);
                 }
             } catch (_error) {
                 faceDetected = false;
+                previousFaceSample = null;
             }
 
             if (!faceDetected) {
                 noFaceCount += 1;
             }
+            expressionState = detectExpressionState();
             updateMetricUI();
         }
 
@@ -283,14 +528,122 @@
                         face_detected: faceDetected,
                         tab_active: tabActive,
                         camera_active: cameraActive,
+                        movement_intensity: movementIntensity,
+                        head_movement_score: headMovementScore,
+                        eye_movement_score: eyeMovementScore,
+                        expression_state: expressionState,
                         metrics: {
                             focus_loss_count: focusLossCount,
-                            no_face_count: noFaceCount
+                            no_face_count: noFaceCount,
+                            movement_intensity: movementIntensity,
+                            head_movement_score: headMovementScore,
+                            eye_movement_score: eyeMovementScore,
+                            expression_state: expressionState
                         }
                     })
                 });
             } catch (_error) {
                 // Non-blocking telemetry.
+            }
+        }
+
+        function maybeShowMovementPopup(summary) {
+            if (!summary) return;
+            const now = Date.now();
+            if (now - lastInterviewerPopupAt < 25000) {
+                return;
+            }
+
+            const frequentEye = Boolean(summary.frequent_eye_movement);
+            const frequentHead = Boolean(summary.frequent_head_movement);
+            if (!frequentEye && !frequentHead) {
+                return;
+            }
+
+            const eyePct = Math.round(Number(summary.eye_movement_frequency || 0) * 100);
+            const headPct = Math.round(Number(summary.head_movement_frequency || 0) * 100);
+            let popupText = 'Behavior alert: ';
+            if (frequentEye && frequentHead) {
+                popupText += `candidate shows frequent eye movement (${eyePct}%) and frequent head movement (${headPct}%).`;
+            } else if (frequentEye) {
+                popupText += `candidate shows frequent eye movement (${eyePct}%).`;
+            } else {
+                popupText += `candidate shows frequent head movement (${headPct}%).`;
+            }
+
+            alert(popupText);
+            lastInterviewerPopupAt = now;
+        }
+
+        async function loadCandidateBehaviorInsights() {
+            if (!canViewQuestionAssist || participantRole !== 'company') {
+                return;
+            }
+
+            const statusNode = document.getElementById('candidateBehaviorStatus');
+            const engagementNode = document.getElementById('engagementScore');
+            const faceRateNode = document.getElementById('faceRate');
+            const focusRateNode = document.getElementById('focusRate');
+            const movementNode = document.getElementById('movementRate');
+            const dominantNode = document.getElementById('dominantExpression');
+            const alertList = document.getElementById('behaviorAlertList');
+            const timelineList = document.getElementById('behaviorTimeline');
+
+            if (!statusNode || !engagementNode || !faceRateNode || !focusRateNode || !movementNode || !dominantNode || !alertList || !timelineList) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/company/applications/${applicationId}/candidate-behavior`);
+                const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+                let data = null;
+                if (contentType.includes('application/json')) {
+                    data = await response.json();
+                } else {
+                    const rawText = await response.text();
+                    statusNode.textContent = `Behavior API returned non-JSON response (${response.status}). Please re-open from company dashboard.`;
+                    if (rawText && rawText.toLowerCase().includes('login')) {
+                        statusNode.textContent = 'Session expired for company account. Please login again and reopen interview room.';
+                    }
+                    return;
+                }
+
+                if (!response.ok || !data.success) {
+                    statusNode.textContent = (data && data.message) || 'Unable to load candidate behavior.';
+                    return;
+                }
+
+                if (!data.has_data) {
+                    statusNode.textContent = data.message || 'Waiting for candidate signals...';
+                    return;
+                }
+
+                const summary = data.summary || {};
+                statusNode.textContent = `Last update: ${summary.last_captured_at || 'just now'} | Samples: ${summary.sample_count || 0}`;
+                engagementNode.textContent = `${Number(summary.engagement_score || 0).toFixed(1)} / 100`;
+                faceRateNode.textContent = `${Math.round(Number(summary.face_detection_rate || 0) * 100)}%`;
+                focusRateNode.textContent = `${Math.round(Number(summary.focus_rate || 0) * 100)}%`;
+                movementNode.textContent = Number(summary.avg_movement_intensity || 0).toFixed(2);
+                dominantNode.textContent = String(summary.dominant_expression || 'unknown').replace(/_/g, ' ');
+                maybeShowMovementPopup(summary);
+
+                const alerts = Array.isArray(summary.alerts) ? summary.alerts : [];
+                alertList.innerHTML = alerts.length
+                    ? alerts.map(a => `<li>${a}</li>`).join('')
+                    : '<li>No major behavioral alerts.</li>';
+
+                const recent = Array.isArray(data.recent_samples) ? data.recent_samples : [];
+                timelineList.innerHTML = recent.length
+                    ? recent.map(sample => {
+                        const ts = sample.captured_at || '';
+                        const expr = String(sample.expression_state || 'unknown').replace(/_/g, ' ');
+                        const move = Number(sample.movement_intensity || 0).toFixed(2);
+                        const face = sample.face_detected ? 'face:yes' : 'face:no';
+                        return `<li>${ts}<br>${expr} | movement ${move} | ${face}</li>`;
+                    }).join('')
+                    : '<li>No recent samples.</li>';
+            } catch (_error) {
+                statusNode.textContent = 'Network error while loading candidate behavior. Check server availability and session.';
             }
         }
 
@@ -311,6 +664,14 @@
                 }
             };
             api = new JitsiMeetExternalAPI(domain, options);
+
+            // Sync camera metric with Jitsi camera status for cases where local preview is unavailable.
+            api.addListener('videoMuteStatusChanged', (event) => {
+                if (event && typeof event.muted === 'boolean') {
+                    cameraActive = !event.muted || cameraActive;
+                    updateMetricUI();
+                }
+            });
         }
 
         async function loadQuestionSuggestions() {
@@ -375,8 +736,12 @@
 
         initJitsi();
         updateMetricUI();
+        updatePermissionStatus();
         setInterval(detectFaceSignal, 5000);
         setInterval(sendBehaviorSignal, 20000);
+        if (participantRole === 'candidate') {
+            setTimeout(() => startCamera(true), 1200);
+        }
         if (canViewQuestionAssist && participantRole === 'company') {
             if (initialQuestions.length) {
                 const questionList = document.getElementById('questionList');
@@ -390,6 +755,8 @@
                 }
             }
             loadQuestionSuggestions();
+            loadCandidateBehaviorInsights();
+            setInterval(loadCandidateBehaviorInsights, 12000);
         }
     </script>
 </body>

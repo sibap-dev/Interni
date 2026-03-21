@@ -4573,10 +4573,15 @@ def record_interview_behavior(application_id):
 
         payload = request.get_json(silent=True) or {}
         details = {
+            'application_id': application_id,
             'room_id': payload.get('room_id'),
             'face_detected': bool(payload.get('face_detected')),
             'tab_active': bool(payload.get('tab_active')),
             'camera_active': bool(payload.get('camera_active')),
+            'movement_intensity': _safe_float(payload.get('movement_intensity'), 0.0),
+            'head_movement_score': _safe_float(payload.get('head_movement_score'), 0.0),
+            'eye_movement_score': _safe_float(payload.get('eye_movement_score'), 0.0),
+            'expression_state': str(payload.get('expression_state') or 'unknown').strip().lower(),
             'metrics': payload.get('metrics') or {},
             'role': actor_role,
             'captured_at': datetime.now(timezone.utc).isoformat()
@@ -4695,6 +4700,178 @@ def interview_question_suggestions(application_id):
     except Exception as e:
         print(f"Error generating interview question suggestions: {e}")
         return jsonify({'success': False, 'message': f'Failed to generate suggestions: {str(e)[:220]}'}), 500
+
+
+@app.route('/api/company/applications/<int:application_id>/candidate-behavior', methods=['GET'])
+def candidate_behavior_summary(application_id):
+    """Return live summary of candidate behavior signals for interviewer view."""
+    try:
+        if not (session.get('is_company') and session.get('company_id')):
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+        company_id = session.get('company_id')
+        app_rows = (
+            supabase.table('applications')
+            .select('*')
+            .eq('id', application_id)
+            .limit(1)
+            .execute()
+            .data or []
+        )
+        if not app_rows:
+            return jsonify({'success': False, 'message': 'Application not found'}), 404
+
+        app_row = app_rows[0]
+        owner_matches = _safe_int(app_row.get('company_id'), -1) == _safe_int(company_id, -2)
+        if not owner_matches and app_row.get('internship_id'):
+            internship_rows = (
+                supabase.table('internships')
+                .select('id')
+                .eq('id', app_row.get('internship_id'))
+                .eq('company_id', company_id)
+                .limit(1)
+                .execute()
+                .data or []
+            )
+            owner_matches = bool(internship_rows)
+        if not owner_matches:
+            return jsonify({'success': False, 'message': 'Application does not belong to your company'}), 403
+
+        candidate_id = None
+        for col in _candidate_id_column_variants():
+            if app_row.get(col):
+                candidate_id = app_row.get(col)
+                break
+
+        if not candidate_id:
+            return jsonify({'success': True, 'has_data': False, 'message': 'Candidate id is missing for this application.'})
+
+        notes_payload = _parse_interview_notes_payload(app_row.get('interview_notes'))
+        expected_room_id = str(notes_payload.get('interview_room_id') or '').strip()
+
+        raw_logs = (
+            supabase.table('activity_logs')
+            .select('id, details, created_at')
+            .eq('user_id', candidate_id)
+            .eq('action_type', 'interview_behavior_signal')
+            .order('created_at', desc=True)
+            .limit(200)
+            .execute()
+            .data or []
+        )
+
+        samples = []
+        for row in raw_logs:
+            details = row.get('details') or {}
+            if isinstance(details, str):
+                try:
+                    details = json.loads(details)
+                except Exception:
+                    continue
+            if not isinstance(details, dict):
+                continue
+
+            if str(details.get('role') or '').strip().lower() != 'candidate':
+                continue
+
+            detail_app_id = _safe_int(details.get('application_id'), 0)
+            if detail_app_id and detail_app_id != _safe_int(application_id, -1):
+                continue
+
+            detail_room_id = str(details.get('room_id') or '').strip()
+            if expected_room_id and detail_room_id and detail_room_id != expected_room_id:
+                continue
+
+            face_detected = bool(details.get('face_detected'))
+            tab_active = bool(details.get('tab_active'))
+            camera_active = bool(details.get('camera_active'))
+            movement_intensity = _safe_float(details.get('movement_intensity'), 0.0)
+            movement_intensity = max(0.0, min(1.0, movement_intensity))
+            head_movement_score = _safe_float(details.get('head_movement_score'), 0.0)
+            head_movement_score = max(0.0, min(1.0, head_movement_score))
+            eye_movement_score = _safe_float(details.get('eye_movement_score'), 0.0)
+            eye_movement_score = max(0.0, min(1.0, eye_movement_score))
+            expression_state = str(details.get('expression_state') or 'unknown').strip().lower()
+            captured_at = details.get('captured_at') or row.get('created_at')
+
+            samples.append({
+                'captured_at': captured_at,
+                'face_detected': face_detected,
+                'tab_active': tab_active,
+                'camera_active': camera_active,
+                'movement_intensity': movement_intensity,
+                'head_movement_score': head_movement_score,
+                'eye_movement_score': eye_movement_score,
+                'expression_state': expression_state,
+            })
+
+        if not samples:
+            return jsonify({'success': True, 'has_data': False, 'message': 'No candidate behavior signals received yet.'})
+
+        total = len(samples)
+        face_hits = sum(1 for s in samples if s['face_detected'])
+        focus_hits = sum(1 for s in samples if s['tab_active'])
+        camera_hits = sum(1 for s in samples if s['camera_active'])
+        movement_avg = sum(s['movement_intensity'] for s in samples) / total
+        head_avg = sum(s['head_movement_score'] for s in samples) / total
+        eye_avg = sum(s['eye_movement_score'] for s in samples) / total
+        head_freq = sum(1 for s in samples if s['head_movement_score'] >= 0.55) / total
+        eye_freq = sum(1 for s in samples if s['eye_movement_score'] >= 0.50) / total
+
+        expression_counts = {}
+        for s in samples:
+            key = s['expression_state'] or 'unknown'
+            expression_counts[key] = expression_counts.get(key, 0) + 1
+
+        dominant_expression = max(expression_counts.items(), key=lambda item: item[1])[0] if expression_counts else 'unknown'
+
+        face_rate = face_hits / total
+        focus_rate = focus_hits / total
+        camera_rate = camera_hits / total
+        stability_score = max(0.0, 1.0 - abs(movement_avg - 0.20) / 0.40)
+        engagement_score = round((face_rate * 0.4 + focus_rate * 0.3 + camera_rate * 0.2 + stability_score * 0.1) * 100, 1)
+
+        alerts = []
+        if face_rate < 0.65:
+            alerts.append('Face not visible consistently')
+        if focus_rate < 0.70:
+            alerts.append('Frequent tab switching or attention loss')
+        if camera_rate < 0.70:
+            alerts.append('Camera is frequently inactive')
+        if movement_avg > 0.55:
+            alerts.append('High movement detected (possible restlessness)')
+        if eye_freq >= 0.45:
+            alerts.append('Frequent eye movement detected')
+        if head_freq >= 0.40:
+            alerts.append('Frequent head movement detected')
+
+        recent_samples = sorted(samples, key=lambda s: str(s.get('captured_at') or ''), reverse=True)[:12]
+
+        return jsonify({
+            'success': True,
+            'has_data': True,
+            'summary': {
+                'sample_count': total,
+                'last_captured_at': recent_samples[0].get('captured_at') if recent_samples else '',
+                'face_detection_rate': round(face_rate, 3),
+                'focus_rate': round(focus_rate, 3),
+                'camera_rate': round(camera_rate, 3),
+                'avg_movement_intensity': round(movement_avg, 3),
+                'avg_head_movement_score': round(head_avg, 3),
+                'avg_eye_movement_score': round(eye_avg, 3),
+                'head_movement_frequency': round(head_freq, 3),
+                'eye_movement_frequency': round(eye_freq, 3),
+                'frequent_head_movement': bool(head_freq >= 0.40),
+                'frequent_eye_movement': bool(eye_freq >= 0.45),
+                'dominant_expression': dominant_expression,
+                'engagement_score': engagement_score,
+                'alerts': alerts,
+            },
+            'recent_samples': recent_samples,
+        })
+    except Exception as e:
+        print(f"Error building candidate behavior summary: {e}")
+        return jsonify({'success': False, 'message': f'Failed to load behavior summary: {str(e)[:220]}'}), 500
 
 @app.route('/api/company/applications/<int:application_id>/rating', methods=['PUT'])
 @company_login_required
