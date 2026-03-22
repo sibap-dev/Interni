@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>In-App Interview Room</title>
     <script src="https://meet.jit.si/external_api.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.1.0/dist/blazeface.min.js"></script>
     <style>
         :root {
             --bg: #0f172a;
@@ -149,6 +151,7 @@
         }
         .btn.primary { background: #2563eb; color: #fff; }
         .btn.danger { background: #b91c1c; color: #fff; }
+        .btn.secondary { background: #475569; color: #fff; }
         .main {
             padding: 12px;
             display: flex;
@@ -168,9 +171,64 @@
             .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
             #jitsiContainer { min-height: 70vh; }
         }
+
+        .camera-required-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            background: rgba(2, 6, 23, 0.86);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .camera-required-overlay.open {
+            display: flex;
+        }
+
+        .camera-required-card {
+            width: min(560px, 95vw);
+            background: #111827;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            color: #e5e7eb;
+            box-shadow: 0 12px 42px rgba(0, 0, 0, 0.45);
+            padding: 18px;
+        }
+
+        .camera-required-card h3 {
+            margin: 0 0 8px;
+            font-size: 1.05rem;
+        }
+
+        .camera-required-card p {
+            margin: 0;
+            color: #cbd5e1;
+            font-size: 0.88rem;
+            line-height: 1.4;
+        }
+
+        .camera-required-actions {
+            margin-top: 14px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
     </style>
 </head>
 <body>
+    <div class="camera-required-overlay" id="candidateCameraGate" aria-hidden="true">
+        <div class="camera-required-card">
+            <h3>Camera Permission Required</h3>
+            <p id="candidateCameraGateMessage">Candidates must allow camera access to join this interview room.</p>
+            <div class="camera-required-actions">
+                <button class="btn primary" id="candidateGateRetryBtn" type="button">Retry Camera Access</button>
+                <button class="btn secondary" id="candidateGateLeaveBtn" type="button">Leave Interview</button>
+            </div>
+        </div>
+    </div>
+
     <div class="layout">
         <aside class="sidebar">
             <h3 class="title">In-App Interview Room</h3>
@@ -186,8 +244,8 @@
                 <video id="localPreview" autoplay muted playsinline></video>
                 <div id="permissionStatus" class="permission-status">Checking camera/microphone support...</div>
                 <div class="actions">
-                    <button class="btn primary" onclick="startCamera()">Start Camera</button>
-                    <button class="btn danger" onclick="stopCamera()">Stop Camera</button>
+                    <button class="btn primary" id="startCameraBtn" onclick="startCamera()">Start Camera</button>
+                    <button class="btn danger" id="stopCameraBtn" onclick="stopCamera()">Stop Camera</button>
                 </div>
             </div>
 
@@ -196,8 +254,10 @@
                 <div class="metric"><span id="faceDot" class="dot"></span> Face Detected: <span id="faceMetric">No</span></div>
                 <div class="metric"><span id="focusDot" class="dot ok"></span> Tab Active: <span id="focusMetric">Yes</span></div>
                 <div class="metric"><span id="cameraDot" class="dot"></span> Camera Active: <span id="cameraMetric">No</span></div>
+                <div class="metric">Live Status: <span id="liveStatusMetric">waiting_for_camera</span></div>
                 <div class="metric">Expression State: <span id="expressionMetric">unknown</span></div>
                 <div class="metric">Movement Intensity: <span id="movementMetric">0.00</span></div>
+                <div class="metric">Eye Movement Score: <span id="eyeMovementMetric">0.00</span></div>
                 <div class="metric">Focus Loss Count: <span id="focusLossCount">0</span></div>
                 <div class="metric">No-Face Count: <span id="noFaceCount">0</span></div>
             </div>
@@ -269,6 +329,8 @@
 
         let api = null;
         let localStream = null;
+        let localAnalysisCameraActive = false;
+        let jitsiVideoActive = false;
         let faceDetected = false;
         let cameraActive = false;
         let tabActive = true;
@@ -276,16 +338,53 @@
         let noFaceCount = 0;
         let movementIntensity = 0;
         let expressionState = 'unknown';
+        let liveStatus = 'waiting_for_camera';
         let previousFaceSample = null;
         let headMovementScore = 0;
         let eyeMovementScore = 0;
         let lastInterviewerPopupAt = 0;
+        let gateVisible = false;
+        let isStoppingForExit = false;
+        let nativeFaceDetector = null;
+        let blazeFaceModel = null;
+        let detectionEngine = 'none';
+        let detectionLoopBusy = false;
+        let lastDetectionTimestamp = 0;
 
         function setPermissionStatus(message, level = 'warn') {
             const node = document.getElementById('permissionStatus');
             if (!node) return;
             node.textContent = message;
             node.className = `permission-status ${level}`;
+        }
+
+        async function initFaceDetectionEngine() {
+            // Prefer native FaceDetector when supported because it is lighter/faster.
+            try {
+                if ('FaceDetector' in window) {
+                    nativeFaceDetector = new FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+                    detectionEngine = 'native';
+                    return;
+                }
+            } catch (_nativeError) {
+                nativeFaceDetector = null;
+            }
+
+            // Fallback to BlazeFace in browsers without FaceDetector support.
+            try {
+                if (window.blazeface && typeof window.blazeface.load === 'function') {
+                    blazeFaceModel = await window.blazeface.load();
+                    if (blazeFaceModel) {
+                        detectionEngine = 'blazeface';
+                        return;
+                    }
+                }
+            } catch (blazeError) {
+                console.warn('BlazeFace model failed to load:', blazeError);
+            }
+
+            detectionEngine = 'none';
+            setPermissionStatus('Face detection engine unavailable in this browser. Use Chrome/Edge for full realtime behavior tracking.', 'warn');
         }
 
         async function updatePermissionStatus() {
@@ -325,17 +424,39 @@
         }
 
         function updateMetricUI() {
+            const expressionLabelMap = {
+                no_face_present: 'No Face Present',
+                distracted: 'Distracted',
+                restless: 'Restless',
+                still: 'Still',
+                engaged: 'Engaged',
+                unknown: 'Unknown'
+            };
+
             document.getElementById('faceMetric').textContent = faceDetected ? 'Yes' : 'No';
             document.getElementById('focusMetric').textContent = tabActive ? 'Yes' : 'No';
             document.getElementById('cameraMetric').textContent = cameraActive ? 'Yes' : 'No';
-            document.getElementById('expressionMetric').textContent = expressionState;
+            document.getElementById('liveStatusMetric').textContent = liveStatus;
+            document.getElementById('expressionMetric').textContent = expressionLabelMap[expressionState] || expressionState;
             document.getElementById('movementMetric').textContent = Number(movementIntensity || 0).toFixed(2);
+            document.getElementById('eyeMovementMetric').textContent = Number(eyeMovementScore || 0).toFixed(2);
             document.getElementById('focusLossCount').textContent = String(focusLossCount);
             document.getElementById('noFaceCount').textContent = String(noFaceCount);
 
             document.getElementById('faceDot').className = `dot ${faceDetected ? 'ok' : ''}`;
             document.getElementById('focusDot').className = `dot ${tabActive ? 'ok' : ''}`;
             document.getElementById('cameraDot').className = `dot ${cameraActive ? 'ok' : ''}`;
+        }
+
+        function syncCameraState() {
+            const hasLocalVideo = Boolean(
+                localStream &&
+                localStream.getVideoTracks &&
+                localStream.getVideoTracks().some(track => track.readyState === 'live' && track.enabled)
+            );
+            localAnalysisCameraActive = hasLocalVideo;
+            cameraActive = Boolean(localAnalysisCameraActive || jitsiVideoActive);
+            updateMetricUI();
         }
 
         function clamp01(value) {
@@ -345,11 +466,62 @@
         }
 
         function detectExpressionState() {
-            if (!cameraActive || !faceDetected) return 'no_face';
+            if (!cameraActive || !faceDetected) return 'no_face_present';
             if (!tabActive) return 'distracted';
             if (movementIntensity > 0.55) return 'restless';
             if (movementIntensity < 0.07) return 'still';
             return 'engaged';
+        }
+
+        function detectLiveStatus() {
+            if (!cameraActive) return 'camera_off';
+            if (!faceDetected) return 'no_face_present';
+            if (!tabActive) return 'tab_inactive';
+            if (eyeMovementScore > 0.6 || movementIntensity > 0.65) return 'high_movement';
+            if (movementIntensity < 0.08) return 'steady';
+            return 'tracking';
+        }
+
+        function refreshBehaviorStatus() {
+            const now = Date.now();
+            const staleDetection = now - lastDetectionTimestamp > 1200;
+
+            if (!cameraActive) {
+                faceDetected = false;
+                previousFaceSample = null;
+            } else if (staleDetection) {
+                faceDetected = false;
+                previousFaceSample = null;
+                movementIntensity = clamp01(movementIntensity * 0.7);
+                headMovementScore = clamp01(headMovementScore * 0.7);
+                eyeMovementScore = clamp01(eyeMovementScore * 0.7);
+            }
+
+            expressionState = detectExpressionState();
+            liveStatus = detectLiveStatus();
+            updateMetricUI();
+        }
+
+        function setCandidateCameraGate(isOpen, message) {
+            if (participantRole !== 'candidate') {
+                return;
+            }
+            const gate = document.getElementById('candidateCameraGate');
+            const gateMessage = document.getElementById('candidateCameraGateMessage');
+            if (!gate || !gateMessage) {
+                return;
+            }
+            if (typeof message === 'string' && message.trim()) {
+                gateMessage.textContent = message;
+            }
+            gate.classList.toggle('open', Boolean(isOpen));
+            gate.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+            gateVisible = Boolean(isOpen);
+            if (gateVisible) {
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = '';
+            }
         }
 
         async function startCamera(silent = false) {
@@ -358,14 +530,14 @@
                 if (!silent) {
                     alert('Camera is blocked because this page is not in a secure context (HTTPS/localhost).');
                 }
-                return;
+                return false;
             }
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 setPermissionStatus('Blocked: browser does not support media devices API.', 'error');
                 if (!silent) {
                     alert('Your browser does not support camera access for this interview room.');
                 }
-                return;
+                return false;
             }
 
             if (localStream) {
@@ -405,9 +577,15 @@
 
                 const localPreview = document.getElementById('localPreview');
                 localPreview.srcObject = localStream;
-                cameraActive = localStream.getVideoTracks().length > 0;
+                try {
+                    await localPreview.play();
+                } catch (_playErr) {
+                    // Some browsers require user gesture; stream may still be active.
+                }
+                localAnalysisCameraActive = localStream.getVideoTracks().length > 0;
+                syncCameraState();
                 setPermissionStatus('Camera connected for local behavior analysis.', 'ok');
-                updateMetricUI();
+                return localAnalysisCameraActive;
             } catch (error) {
                 const errName = String(error?.name || 'UnknownError');
                 const errMsg = String(error?.message || 'Permission request failed');
@@ -424,8 +602,27 @@
                 if (!silent) {
                     alert(`Camera access failed (${errName}). ${errMsg}`);
                 }
-                cameraActive = false;
-                updateMetricUI();
+                localAnalysisCameraActive = false;
+                syncCameraState();
+                return false;
+            }
+        }
+
+        async function verifyCameraAccessForJoin() {
+            if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                return false;
+            }
+
+            let probeStream = null;
+            try {
+                probeStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                return Boolean(probeStream && probeStream.getVideoTracks().length);
+            } catch (_error) {
+                return false;
+            } finally {
+                if (probeStream) {
+                    probeStream.getTracks().forEach(track => track.stop());
+                }
             }
         }
 
@@ -436,86 +633,209 @@
             }
             const localPreview = document.getElementById('localPreview');
             localPreview.srcObject = null;
-            cameraActive = false;
+            localAnalysisCameraActive = false;
             faceDetected = false;
             movementIntensity = 0;
             headMovementScore = 0;
             eyeMovementScore = 0;
-            expressionState = 'unknown';
+            expressionState = 'no_face_present';
+            liveStatus = 'camera_off';
             previousFaceSample = null;
             setPermissionStatus('Camera stopped.', 'warn');
-            updateMetricUI();
+            syncCameraState();
+
+            if (participantRole === 'candidate' && !isStoppingForExit && !jitsiVideoActive) {
+                setCandidateCameraGate(true, 'Camera must remain ON for candidate interviews. Please re-enable camera to continue.');
+            }
+        }
+
+        async function enforceCandidateCameraBeforeJoin() {
+            if (participantRole !== 'candidate') {
+                return true;
+            }
+
+            const stopBtn = document.getElementById('stopCameraBtn');
+            if (stopBtn) {
+                stopBtn.disabled = true;
+                stopBtn.title = 'Candidates cannot turn camera off during interview.';
+                stopBtn.style.opacity = '0.65';
+                stopBtn.style.cursor = 'not-allowed';
+            }
+
+            const ok = await verifyCameraAccessForJoin();
+            if (!ok) {
+                setCandidateCameraGate(true, 'Candidates must allow camera access to join this interview room.');
+                return false;
+            }
+
+            setCandidateCameraGate(false);
+            return true;
+        }
+
+        function requestJitsiCameraOn() {
+            if (!api || typeof api.executeCommand !== 'function') {
+                return;
+            }
+
+            if (typeof api.isVideoMuted === 'function') {
+                Promise.resolve(api.isVideoMuted())
+                    .then((muted) => {
+                        if (muted) {
+                            api.executeCommand('toggleVideo');
+                        }
+                    })
+                    .catch(() => {
+                        // If mute state cannot be read, best effort toggle once.
+                        api.executeCommand('toggleVideo');
+                    });
+                return;
+            }
+
+            api.executeCommand('toggleVideo');
         }
 
         async function detectFaceSignal() {
             if (!cameraActive || !localStream) {
                 faceDetected = false;
-                updateMetricUI();
+                refreshBehaviorStatus();
                 return;
             }
 
+            if (detectionLoopBusy) {
+                return;
+            }
+
+            const preview = document.getElementById('localPreview');
+            if (!preview || preview.readyState < 2 || preview.videoWidth === 0 || preview.videoHeight === 0) {
+                faceDetected = false;
+                refreshBehaviorStatus();
+                return;
+            }
+
+            detectionLoopBusy = true;
+
             try {
-                if ('FaceDetector' in window) {
-                    const detector = new FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
-                    const faces = await detector.detect(document.getElementById('localPreview'));
-                    faceDetected = Array.isArray(faces) && faces.length > 0;
+                let box = null;
 
-                    if (faceDetected) {
-                        const face = faces[0];
-                        const box = face && face.boundingBox ? face.boundingBox : null;
-                        const preview = document.getElementById('localPreview');
-                        if (box && preview) {
-                            const vw = preview.videoWidth || 640;
-                            const vh = preview.videoHeight || 480;
-                            const centerX = (Number(box.x || 0) + Number(box.width || 0) / 2) / vw;
-                            const centerY = (Number(box.y || 0) + Number(box.height || 0) / 2) / vh;
-                            const area = (Number(box.width || 0) * Number(box.height || 0)) / (vw * vh);
-
-                            if (previousFaceSample) {
-                                const dx = centerX - previousFaceSample.centerX;
-                                const dy = centerY - previousFaceSample.centerY;
-                                const dArea = area - previousFaceSample.area;
-                                const centerMotion = Math.sqrt(dx * dx + dy * dy) * 2.5;
-                                const sizeMotion = Math.abs(dArea) * 8;
-                                movementIntensity = clamp01((centerMotion * 0.75) + (sizeMotion * 0.25));
-
-                                // Head movement proxy: larger whole-face displacement / size shift.
-                                headMovementScore = clamp01((Math.abs(dx) * 1.8) + (Math.abs(dy) * 1.8) + (Math.abs(dArea) * 7.0));
-
-                                // Eye movement proxy: quick horizontal jitter while face size remains relatively stable.
-                                const stableFaceFactor = clamp01(1.0 - Math.min(1, Math.abs(dArea) * 20));
-                                eyeMovementScore = clamp01(Math.abs(dx) * 6.5 * stableFaceFactor);
-                            } else {
-                                movementIntensity = 0.05;
-                                headMovementScore = 0.05;
-                                eyeMovementScore = 0.05;
-                            }
-
-                            previousFaceSample = { centerX, centerY, area, t: Date.now() };
-                        }
-                    } else {
-                        previousFaceSample = null;
-                        movementIntensity = clamp01(movementIntensity * 0.5);
-                        headMovementScore = clamp01(headMovementScore * 0.5);
-                        eyeMovementScore = clamp01(eyeMovementScore * 0.5);
+                if (detectionEngine === 'native' && nativeFaceDetector) {
+                    const faces = await nativeFaceDetector.detect(preview);
+                    if (Array.isArray(faces) && faces.length > 0 && faces[0]?.boundingBox) {
+                        const b = faces[0].boundingBox;
+                        const x = Number(
+                            (typeof b.x === 'number' ? b.x : b.left) || 0
+                        );
+                        const y = Number(
+                            (typeof b.y === 'number' ? b.y : b.top) || 0
+                        );
+                        const width = Number(
+                            (typeof b.width === 'number'
+                                ? b.width
+                                : (typeof b.right === 'number' ? b.right - x : 0)) || 0
+                        );
+                        const height = Number(
+                            (typeof b.height === 'number'
+                                ? b.height
+                                : (typeof b.bottom === 'number' ? b.bottom - y : 0)) || 0
+                        );
+                        box = {
+                            x,
+                            y,
+                            width: Math.max(0, width),
+                            height: Math.max(0, height)
+                        };
                     }
+                } else if (detectionEngine === 'blazeface' && blazeFaceModel) {
+                    const predictions = await blazeFaceModel.estimateFaces(preview, false);
+                    if (Array.isArray(predictions) && predictions.length > 0) {
+                        const p = predictions[0];
+                        const tl = Array.isArray(p.topLeft) ? p.topLeft : [0, 0];
+                        const br = Array.isArray(p.bottomRight) ? p.bottomRight : [0, 0];
+                        box = {
+                            x: Number(tl[0] || 0),
+                            y: Number(tl[1] || 0),
+                            width: Math.max(0, Number(br[0] || 0) - Number(tl[0] || 0)),
+                            height: Math.max(0, Number(br[1] || 0) - Number(tl[1] || 0))
+                        };
+                    }
+                }
+
+                faceDetected = Boolean(box && box.width > 6 && box.height > 6);
+
+                if (faceDetected) {
+                    const vw = preview.videoWidth || 640;
+                    const vh = preview.videoHeight || 480;
+                    const x = Number(box.x || 0);
+                    const y = Number(box.y || 0);
+                    const w = Number(box.width || 0);
+                    const h = Number(box.height || 0);
+                    const right = x + w;
+                    const bottom = y + h;
+                    const centerX = x + (w / 2);
+                    const centerY = y + (h / 2);
+                    const minArea = vw * vh * 0.005;
+
+                    // Mark as no-face only when the detection is clearly invalid/outside the frame.
+                    const invalidBox = (
+                        x < -vw * 0.2 ||
+                        y < -vh * 0.2 ||
+                        right > vw * 1.2 ||
+                        bottom > vh * 1.2 ||
+                        centerX < 0 || centerX > vw ||
+                        centerY < 0 || centerY > vh ||
+                        (w * h) < minArea
+                    );
+
+                    if (invalidBox) {
+                        faceDetected = false;
+                    }
+                }
+
+                if (faceDetected) {
+                    const vw = preview.videoWidth || 640;
+                    const vh = preview.videoHeight || 480;
+                    const centerX = (Number(box.x || 0) + Number(box.width || 0) / 2) / vw;
+                    const centerY = (Number(box.y || 0) + Number(box.height || 0) / 2) / vh;
+                    const area = (Number(box.width || 0) * Number(box.height || 0)) / (vw * vh);
+
+                    if (previousFaceSample) {
+                        const dx = centerX - previousFaceSample.centerX;
+                        const dy = centerY - previousFaceSample.centerY;
+                        const dArea = area - previousFaceSample.area;
+                        const centerMotion = Math.sqrt(dx * dx + dy * dy) * 2.5;
+                        const sizeMotion = Math.abs(dArea) * 8;
+                        movementIntensity = clamp01((centerMotion * 0.75) + (sizeMotion * 0.25));
+
+                        // Head movement proxy: larger whole-face displacement / size shift.
+                        headMovementScore = clamp01((Math.abs(dx) * 1.8) + (Math.abs(dy) * 1.8) + (Math.abs(dArea) * 7.0));
+
+                        // Eye movement proxy: quick horizontal jitter while face size remains relatively stable.
+                        const stableFaceFactor = clamp01(1.0 - Math.min(1, Math.abs(dArea) * 20));
+                        eyeMovementScore = clamp01(Math.abs(dx) * 6.5 * stableFaceFactor);
+                    } else {
+                        movementIntensity = 0.05;
+                        headMovementScore = 0.05;
+                        eyeMovementScore = 0.05;
+                    }
+
+                    previousFaceSample = { centerX, centerY, area, t: Date.now() };
+                    lastDetectionTimestamp = Date.now();
                 } else {
-                    // Fallback heuristic when FaceDetector API is unavailable.
-                    faceDetected = true;
-                    movementIntensity = clamp01(movementIntensity * 0.8 + 0.1);
-                    headMovementScore = clamp01(headMovementScore * 0.8 + 0.08);
-                    eyeMovementScore = clamp01(eyeMovementScore * 0.8 + 0.08);
+                    previousFaceSample = null;
+                    movementIntensity = clamp01(movementIntensity * 0.5);
+                    headMovementScore = clamp01(headMovementScore * 0.5);
+                    eyeMovementScore = clamp01(eyeMovementScore * 0.5);
                 }
             } catch (_error) {
                 faceDetected = false;
                 previousFaceSample = null;
+            } finally {
+                detectionLoopBusy = false;
             }
 
             if (!faceDetected) {
                 noFaceCount += 1;
             }
-            expressionState = detectExpressionState();
-            updateMetricUI();
+            refreshBehaviorStatus();
         }
 
         async function sendBehaviorSignal() {
@@ -665,11 +985,40 @@
             };
             api = new JitsiMeetExternalAPI(domain, options);
 
+            api.addListener('videoConferenceJoined', () => {
+                if (participantRole === 'candidate') {
+                    requestJitsiCameraOn();
+                    setTimeout(() => {
+                        if (typeof api.isVideoMuted === 'function') {
+                            Promise.resolve(api.isVideoMuted())
+                                .then((muted) => {
+                                    jitsiVideoActive = !Boolean(muted);
+                                    syncCameraState();
+                                    if (!jitsiVideoActive) {
+                                        setCandidateCameraGate(true, 'Please enable camera in the meeting controls to continue as candidate.');
+                                    } else {
+                                        setCandidateCameraGate(false);
+                                    }
+                                })
+                                .catch(() => {
+                                    // Ignore API read failures.
+                                });
+                        }
+                    }, 1200);
+                }
+            });
+
             // Sync camera metric with Jitsi camera status for cases where local preview is unavailable.
             api.addListener('videoMuteStatusChanged', (event) => {
                 if (event && typeof event.muted === 'boolean') {
-                    cameraActive = !event.muted || cameraActive;
-                    updateMetricUI();
+                    jitsiVideoActive = !event.muted;
+                    syncCameraState();
+
+                    if (participantRole === 'candidate' && event.muted) {
+                        setCandidateCameraGate(true, 'Camera must stay enabled for candidates. Please turn camera back on.');
+                    } else if (participantRole === 'candidate' && !event.muted) {
+                        setCandidateCameraGate(false);
+                    }
                 }
             });
         }
@@ -730,17 +1079,64 @@
         });
 
         window.addEventListener('beforeunload', () => {
+            isStoppingForExit = true;
             sendBehaviorSignal();
             stopCamera();
         });
 
-        initJitsi();
+        const candidateGateRetryBtn = document.getElementById('candidateGateRetryBtn');
+        if (candidateGateRetryBtn) {
+            candidateGateRetryBtn.addEventListener('click', async () => {
+                const ok = await verifyCameraAccessForJoin();
+                if (ok) {
+                    setCandidateCameraGate(false);
+                    if (!api) {
+                        initJitsi();
+                    } else {
+                        requestJitsiCameraOn();
+                    }
+                } else {
+                    setCandidateCameraGate(true, 'Camera permission is still blocked. Allow camera and retry.');
+                }
+            });
+        }
+
+        const candidateGateLeaveBtn = document.getElementById('candidateGateLeaveBtn');
+        if (candidateGateLeaveBtn) {
+            candidateGateLeaveBtn.addEventListener('click', () => {
+                window.location.href = '/home';
+            });
+        }
+
+        initFaceDetectionEngine().then(() => {
+            if (detectionEngine === 'native') {
+                setPermissionStatus('Realtime face detection ready (native engine).', 'ok');
+            } else if (detectionEngine === 'blazeface') {
+                setPermissionStatus('Realtime face detection ready (AI fallback engine).', 'ok');
+            }
+        });
+
+        if (participantRole === 'candidate') {
+            enforceCandidateCameraBeforeJoin().then((ready) => {
+                if (ready) {
+                    initJitsi();
+                }
+            });
+        } else {
+            initJitsi();
+        }
         updateMetricUI();
         updatePermissionStatus();
-        setInterval(detectFaceSignal, 5000);
+        setInterval(detectFaceSignal, 300);
+        setInterval(refreshBehaviorStatus, 250);
         setInterval(sendBehaviorSignal, 20000);
+
         if (participantRole === 'candidate') {
-            setTimeout(() => startCamera(true), 1200);
+            setInterval(() => {
+                if (!cameraActive && !gateVisible) {
+                    setCandidateCameraGate(true, 'Camera access is required for candidates. Please re-enable camera.');
+                }
+            }, 2500);
         }
         if (canViewQuestionAssist && participantRole === 'company') {
             if (initialQuestions.length) {
