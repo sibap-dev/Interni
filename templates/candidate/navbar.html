@@ -1,0 +1,262 @@
+<style>
+	body {
+		padding-top: 74px;
+	}
+
+	.candidate-nav {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		z-index: 1100;
+		height: 74px;
+		background: linear-gradient(120deg, #0b4aa2 0%, #1e40af 50%, #2563eb 100%);
+		color: #ffffff;
+		box-shadow: 0 8px 24px rgba(2, 6, 23, 0.2);
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0 18px;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+	}
+
+	.candidate-nav-left {
+		display: inline-flex;
+		align-items: center;
+		gap: 10px;
+	}
+
+	.candidate-nav-brand {
+		display: inline-flex;
+		align-items: center;
+		gap: 10px;
+		color: #ffffff;
+		text-decoration: none;
+		font-weight: 800;
+		letter-spacing: 0.2px;
+		font-size: 1rem;
+	}
+
+	.candidate-nav-brand i {
+		font-size: 1.05rem;
+	}
+
+	.candidate-nav-right {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.candidate-nav-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		border-radius: 10px;
+		border: 1px solid rgba(255, 255, 255, 0.25);
+		color: #ffffff;
+		text-decoration: none;
+		font-size: 0.84rem;
+		font-weight: 700;
+		padding: 9px 12px;
+		background: rgba(255, 255, 255, 0.12);
+		transition: background-color 0.2s ease;
+	}
+
+	.candidate-nav-btn:hover {
+		background: rgba(255, 255, 255, 0.24);
+	}
+
+	.candidate-nav-btn.logout {
+		background: rgba(220, 38, 38, 0.88);
+		border-color: rgba(220, 38, 38, 0.95);
+	}
+
+	.candidate-nav-btn.logout:hover {
+		background: rgba(185, 28, 28, 0.95);
+	}
+
+	.candidate-menu-toggle {
+		width: 42px;
+		height: 42px;
+		border-radius: 10px;
+		border: 1px solid rgba(255, 255, 255, 0.25);
+		background: rgba(255, 255, 255, 0.14);
+		color: #ffffff;
+		cursor: pointer;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 1rem;
+	}
+
+	.candidate-menu-overlay {
+		position: fixed;
+		inset: 0;
+		background: rgba(2, 6, 23, 0.52);
+		backdrop-filter: blur(2px);
+		z-index: 1150;
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 0.2s ease;
+	}
+
+	.candidate-menu-overlay.open {
+		opacity: 1;
+		pointer-events: auto;
+	}
+
+	.candidate-sidebar {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: min(320px, 85vw);
+		height: 100vh;
+		z-index: 1200;
+		background: #ffffff;
+		border-right: 1px solid #dbe3f0;
+		box-shadow: 10px 0 35px rgba(15, 23, 42, 0.15);
+		transform: translateX(-100%);
+		transition: transform 0.2s ease;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.candidate-sidebar.open {
+		transform: translateX(0);
+	}
+
+	.candidate-sidebar-header {
+		background: linear-gradient(125deg, #0b4aa2 0%, #1e40af 100%);
+		color: #ffffff;
+		padding: 18px;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.candidate-sidebar-title {
+		font-size: 1rem;
+		font-weight: 800;
+	}
+
+	.candidate-sidebar-close {
+		width: 32px;
+		height: 32px;
+		border: none;
+		border-radius: 8px;
+		background: rgba(255, 255, 255, 0.18);
+		color: #ffffff;
+		cursor: pointer;
+	}
+
+	.candidate-sidebar-links {
+		padding: 14px;
+		display: grid;
+		gap: 8px;
+	}
+
+	.candidate-sidebar-links a {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		border-radius: 10px;
+		padding: 11px 12px;
+		text-decoration: none;
+		color: #1e293b;
+		font-weight: 600;
+		border: 1px solid #e2e8f0;
+		background: #f8fafc;
+		transition: all 0.2s ease;
+	}
+
+	.candidate-sidebar-links a:hover {
+		border-color: #bfdbfe;
+		background: #eff6ff;
+		color: #1d4ed8;
+	}
+
+	@media (max-width: 780px) {
+		.candidate-nav-btn {
+			display: none;
+		}
+	}
+</style>
+
+<header class="candidate-nav">
+	<div class="candidate-nav-left">
+		<button class="candidate-menu-toggle" id="candidateMenuToggle" type="button" aria-label="Open navigation menu">
+			<i class="fas fa-bars"></i>
+		</button>
+		<a href="{{ url_for('home') }}" class="candidate-nav-brand">
+			<i class="fas fa-briefcase"></i>
+			<span>PM Internship</span>
+		</a>
+	</div>
+	<div class="candidate-nav-right">
+		<a href="{{ url_for('home') }}" class="candidate-nav-btn">
+			<i class="fas fa-home"></i>
+			Dashboard
+		</a>
+		<a href="{{ url_for('logout') }}" class="candidate-nav-btn logout">
+			<i class="fas fa-sign-out-alt"></i>
+			Logout
+		</a>
+	</div>
+</header>
+
+<div class="candidate-menu-overlay" id="candidateMenuOverlay"></div>
+<aside class="candidate-sidebar" id="candidateSidebar" aria-hidden="true">
+	<div class="candidate-sidebar-header">
+		<div class="candidate-sidebar-title">Candidate Menu</div>
+		<button class="candidate-sidebar-close" id="candidateSidebarClose" type="button" aria-label="Close navigation menu">
+			<i class="fas fa-times"></i>
+		</button>
+	</div>
+	<nav class="candidate-sidebar-links">
+		<a href="{{ url_for('home') }}"><i class="fas fa-home"></i> Dashboard</a>
+		<a href="{{ url_for('profile') }}"><i class="fas fa-user"></i> My Profile</a>
+		<a href="{{ url_for('internships_list') }}"><i class="fas fa-briefcase"></i> Browse Internships</a>
+		<a href="{{ url_for('my_applications') }}"><i class="fas fa-file-alt"></i> My Applications</a>
+		<a href="{{ url_for('recommendations') }}"><i class="fas fa-robot"></i> Recommendations</a>
+		<a href="{{ url_for('team_dashboard') }}"><i class="fas fa-people-group"></i> Team Dashboard</a>
+		<a href="{{ url_for('ats') }}"><i class="fas fa-search"></i> ATS Analyzer</a>
+		<a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+	</nav>
+</aside>
+
+<script>
+(function () {
+	const toggleBtn = document.getElementById('candidateMenuToggle');
+	const closeBtn = document.getElementById('candidateSidebarClose');
+	const sidebar = document.getElementById('candidateSidebar');
+	const overlay = document.getElementById('candidateMenuOverlay');
+
+	if (!toggleBtn || !closeBtn || !sidebar || !overlay) {
+		return;
+	}
+
+	const openMenu = () => {
+		sidebar.classList.add('open');
+		overlay.classList.add('open');
+		sidebar.setAttribute('aria-hidden', 'false');
+		document.body.style.overflow = 'hidden';
+	};
+
+	const closeMenu = () => {
+		sidebar.classList.remove('open');
+		overlay.classList.remove('open');
+		sidebar.setAttribute('aria-hidden', 'true');
+		document.body.style.overflow = '';
+	};
+
+	toggleBtn.addEventListener('click', openMenu);
+	closeBtn.addEventListener('click', closeMenu);
+	overlay.addEventListener('click', closeMenu);
+
+	document.addEventListener('keydown', (event) => {
+		if (event.key === 'Escape') {
+			closeMenu();
+		}
+	});
+})();
+</script>

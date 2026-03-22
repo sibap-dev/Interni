@@ -14,8 +14,9 @@ class ProfessionalATSAnalyzer:
         self.skill_database = self.load_industry_skill_database()
         self.section_headers = self.load_standard_headers()
         self.industry_keywords = self.load_industry_keywords()
+        self.role_profiles = self.load_role_profiles()
         
-    def calculate_professional_ats_score(self, resume_text, job_description, user_profile=None):
+    def calculate_professional_ats_score(self, resume_text, job_description, user_profile=None, job_role=None):
         """Industry-standard ATS scoring matching real systems like Workday, Greenhouse"""
         
         # Handle file path input
@@ -27,17 +28,28 @@ class ProfessionalATSAnalyzer:
             resume_content = resume_text
             base_formatting_score = 85
         
+        resolved_role = str(job_role or '').strip().lower()
+        role_profile = self.role_profiles.get(resolved_role)
+
+        enriched_job_description = str(job_description or '')
+        if role_profile:
+            # Keep scoring role-aware even when job description is short.
+            role_keywords = role_profile.get('seed_keywords') or []
+            keywords_blob = ', '.join(role_keywords)
+            if keywords_blob:
+                enriched_job_description = f"{enriched_job_description}\n\nRole context: {resolved_role}\nKey skills: {keywords_blob}".strip()
+
         # Core ATS Analysis Components (matching industry standards)
         parsing_score = self.analyze_resume_parsing(resume_content)
-        keyword_relevance = self.calculate_keyword_relevance(resume_content, job_description)
-        skills_alignment = self.calculate_skills_alignment(resume_content, job_description)
-        experience_match = self.calculate_experience_alignment(resume_content, job_description)
+        keyword_relevance = self.calculate_keyword_relevance(resume_content, enriched_job_description)
+        skills_alignment = self.calculate_skills_alignment(resume_content, enriched_job_description)
+        experience_match = self.calculate_experience_alignment(resume_content, enriched_job_description)
         format_compatibility = self.calculate_format_compatibility(resume_content, base_formatting_score)
         content_quality = self.calculate_content_quality(resume_content)
         section_completeness = self.calculate_section_completeness(resume_content, user_profile)
         
         # Industry-standard weighted scoring (based on 2025 ATS research)
-        weights = self.get_professional_weights(job_description)
+        weights = self.get_professional_weights(enriched_job_description, resolved_role)
         
         total_score = (
             parsing_score * weights['parsing'] +
@@ -49,6 +61,9 @@ class ProfessionalATSAnalyzer:
             section_completeness * weights['completeness']
         )
         
+        missing_elements = self.find_missing_elements(resume_content, enriched_job_description)
+        keyword_analysis = self.detailed_keyword_analysis(resume_content, enriched_job_description)
+
         # Generate comprehensive analysis
         analysis = {
             'total_score': round(total_score, 1),
@@ -65,11 +80,28 @@ class ProfessionalATSAnalyzer:
                 'section_completeness': round(section_completeness, 1)
             },
             'critical_issues': self.identify_critical_issues(parsing_score, keyword_relevance, skills_alignment, format_compatibility),
-            'optimization_recommendations': self.generate_optimization_plan(parsing_score, keyword_relevance, skills_alignment, experience_match, format_compatibility),
-            'missing_elements': self.find_missing_elements(resume_content, job_description),
-            'keyword_analysis': self.detailed_keyword_analysis(resume_content, job_description),
+            'optimization_recommendations': self.generate_optimization_plan(
+                parsing_score,
+                keyword_relevance,
+                skills_alignment,
+                experience_match,
+                format_compatibility,
+                resume_content=resume_content,
+                job_description=enriched_job_description,
+                missing_elements=missing_elements,
+                total_score=total_score,
+            ),
+            'missing_elements': missing_elements,
+            'keyword_analysis': keyword_analysis,
+            'cv_improvement_guide': self.build_cv_improvement_guide(
+                total_score=total_score,
+                resume_content=resume_content,
+                missing_elements=missing_elements,
+                keyword_analysis=keyword_analysis,
+            ),
             'competitive_analysis': self.estimate_competitive_standing(total_score),
             'improvement_roadmap': self.create_improvement_roadmap(total_score, parsing_score, keyword_relevance, skills_alignment),
+            'job_role_used': resolved_role or 'auto_inferred',
             'timestamp': datetime.now().isoformat()
         }
         
@@ -336,12 +368,18 @@ class ProfessionalATSAnalyzer:
         
         return min(100, score)
 
-    def get_professional_weights(self, job_description):
+    def get_professional_weights(self, job_description, job_role=None):
         """Get professional-grade weights based on job analysis"""
-        
-        # Determine job type and level
-        job_level = self.determine_role_level(job_description)
-        job_type = self.determine_job_type(job_description)
+
+        # Determine job type and level (explicit role wins over text inference)
+        role_key = str(job_role or '').strip().lower()
+        role_profile = self.role_profiles.get(role_key)
+        if role_profile:
+            job_level = role_profile.get('level') or self.determine_role_level(job_description)
+            job_type = role_profile.get('job_type') or self.determine_job_type(job_description)
+        else:
+            job_level = self.determine_role_level(job_description)
+            job_type = self.determine_job_type(job_description)
         
         # Base weights (industry standard)
         weights = {
@@ -371,6 +409,66 @@ class ProfessionalATSAnalyzer:
             weights['content'] -= 0.10
         
         return weights
+
+    def load_role_profiles(self):
+        """Role presets used for explicit role-based ATS calibration."""
+        return {
+            'software_engineer': {
+                'level': 'mid',
+                'job_type': 'technical',
+                'seed_keywords': ['python', 'java', 'javascript', 'algorithms', 'api', 'git', 'testing', 'docker']
+            },
+            'frontend_developer': {
+                'level': 'mid',
+                'job_type': 'technical',
+                'seed_keywords': ['html', 'css', 'javascript', 'react', 'ui', 'responsive design', 'web accessibility']
+            },
+            'backend_developer': {
+                'level': 'mid',
+                'job_type': 'technical',
+                'seed_keywords': ['api', 'python', 'node.js', 'database', 'sql', 'microservices', 'security']
+            },
+            'data_analyst': {
+                'level': 'mid',
+                'job_type': 'technical',
+                'seed_keywords': ['sql', 'excel', 'python', 'power bi', 'tableau', 'statistics', 'data cleaning']
+            },
+            'data_scientist': {
+                'level': 'mid',
+                'job_type': 'technical',
+                'seed_keywords': ['machine learning', 'python', 'pandas', 'numpy', 'modeling', 'feature engineering']
+            },
+            'devops_engineer': {
+                'level': 'mid',
+                'job_type': 'technical',
+                'seed_keywords': ['docker', 'kubernetes', 'ci/cd', 'aws', 'terraform', 'monitoring', 'linux']
+            },
+            'ui_ux_designer': {
+                'level': 'mid',
+                'job_type': 'general',
+                'seed_keywords': ['figma', 'wireframes', 'user research', 'prototyping', 'usability testing', 'design systems']
+            },
+            'project_manager': {
+                'level': 'senior',
+                'job_type': 'general',
+                'seed_keywords': ['agile', 'scrum', 'stakeholder management', 'roadmap', 'risk management', 'jira']
+            },
+            'hr_recruiter': {
+                'level': 'mid',
+                'job_type': 'general',
+                'seed_keywords': ['talent acquisition', 'sourcing', 'interviewing', 'candidate pipeline', 'communication']
+            },
+            'marketing_specialist': {
+                'level': 'mid',
+                'job_type': 'general',
+                'seed_keywords': ['seo', 'content marketing', 'social media', 'campaigns', 'analytics', 'branding']
+            },
+            'general_internship': {
+                'level': 'entry',
+                'job_type': 'general',
+                'seed_keywords': ['communication', 'teamwork', 'problem solving', 'learning agility', 'ownership']
+            }
+        }
 
     def get_professional_grade(self, score):
         """Professional grading system matching industry standards"""
@@ -598,7 +696,26 @@ class ProfessionalATSAnalyzer:
     # Add remaining helper methods as needed...
     def calculate_section_completeness(self, resume_content, user_profile):
         """Calculate section completeness"""
-        return 85  # Simplified for now
+        content_lower = str(resume_content or '').lower()
+        expected_sections = ['summary', 'experience', 'education', 'skills', 'projects', 'contact']
+
+        found_count = 0
+        for section in expected_sections:
+            patterns = [rf'\b{section}\b', rf'{section}:', rf'\b{section}s\b']
+            if any(re.search(p, content_lower) for p in patterns):
+                found_count += 1
+
+        section_ratio = found_count / len(expected_sections)
+        score = section_ratio * 75.0
+
+        if user_profile:
+            profile_keys = ['full_name', 'email', 'phone', 'qualification', 'skills', 'career_objective', 'experience']
+            completed = sum(1 for key in profile_keys if user_profile.get(key) not in (None, '', [], {}))
+            score += (completed / len(profile_keys)) * 25.0
+        else:
+            score += 10.0
+
+        return round(max(0.0, min(100.0, score)), 1)
 
     def identify_critical_issues(self, parsing_score, keyword_relevance, skills_alignment, format_compatibility):
         """Identify critical issues"""
@@ -613,32 +730,119 @@ class ProfessionalATSAnalyzer:
             issues.append("Format incompatible with ATS systems")
         return issues
 
-    def generate_optimization_plan(self, parsing_score, keyword_relevance, skills_alignment, experience_match, format_compatibility):
+    def generate_optimization_plan(self, parsing_score, keyword_relevance, skills_alignment, experience_match, format_compatibility, resume_content='', job_description='', missing_elements=None, total_score=None):
         """Generate optimization recommendations"""
         recommendations = []
+        missing_elements = missing_elements or []
+        total_score = 0 if total_score is None else total_score
+        content = str(resume_content or '')
+        word_count = len(content.split())
+        has_metrics = bool(re.search(r'\b\d+(?:%|\+|x)?\b', content))
+        has_projects = bool(re.search(r'\bprojects?\b', content.lower()))
+        has_summary = bool(re.search(r'\bsummary\b|\bprofile\b', content.lower()))
+        has_experience = bool(re.search(r'\bexperience\b', content.lower()))
         
         if parsing_score < 70:
             recommendations.append({
                 'priority': 'High',
                 'category': 'Structure',
-                'action': 'Use standard section headers (Experience, Education, Skills)',
+                'action': 'Include clear section headers: Summary, Experience, Education, Skills, Projects, Contact.',
                 'impact': 'Critical for ATS parsing'
+            })
+
+        if not has_summary:
+            recommendations.append({
+                'priority': 'Medium',
+                'category': 'Content',
+                'action': 'Include a 3-4 line professional summary tailored to the selected role.',
+                'impact': 'Improves recruiter readability and ATS context'
             })
         
         if keyword_relevance < 70:
+            missing_preview = ', '.join(missing_elements[:5]) if missing_elements else 'top role keywords from job description'
             recommendations.append({
                 'priority': 'High', 
                 'category': 'Keywords',
-                'action': 'Include more job-specific keywords naturally throughout resume',
+                'action': f'Include missing role keywords naturally in summary and experience bullets: {missing_preview}.',
                 'impact': 'Increases relevance scoring'
+            })
+
+            recommendations.append({
+                'priority': 'Medium',
+                'category': 'Keywords',
+                'action': 'Avoid keyword stuffing. Use each important keyword in meaningful context, not as a raw list only.',
+                'impact': 'Prevents ATS density penalties'
             })
             
         if skills_alignment < 70:
             recommendations.append({
                 'priority': 'High',
                 'category': 'Skills',
-                'action': 'Add technical skills mentioned in job posting',
+                'action': 'Include a dedicated Skills section grouped by tools, languages, and frameworks relevant to the role.',
                 'impact': 'Improves skill matching score'
+            })
+
+        if experience_match < 70:
+            recommendations.append({
+                'priority': 'High',
+                'category': 'Content',
+                'action': 'Include experience bullets in STAR format (Action + Tool + Result) for each role/project.',
+                'impact': 'Improves experience alignment'
+            })
+
+        if not has_metrics:
+            recommendations.append({
+                'priority': 'High',
+                'category': 'Content',
+                'action': 'Include measurable outcomes (%, time saved, users served, revenue impact) in at least 4 bullets.',
+                'impact': 'Raises content quality and ATS confidence'
+            })
+
+        if not has_projects:
+            recommendations.append({
+                'priority': 'Medium',
+                'category': 'Content',
+                'action': 'Include 2-3 role-relevant projects with stack, responsibilities, and outcomes.',
+                'impact': 'Boosts skills and experience evidence'
+            })
+
+        if not has_experience:
+            recommendations.append({
+                'priority': 'High',
+                'category': 'Structure',
+                'action': 'Include an Experience section (internships, freelance work, college leadership, or project roles).',
+                'impact': 'Critical for ATS shortlisting'
+            })
+
+        if format_compatibility < 70:
+            recommendations.append({
+                'priority': 'Medium',
+                'category': 'Formatting',
+                'action': 'Avoid tables, icons, text boxes, and unusual symbols; keep formatting plain and ATS-friendly.',
+                'impact': 'Improves parsing reliability'
+            })
+
+        if word_count < 220:
+            recommendations.append({
+                'priority': 'Medium',
+                'category': 'Content',
+                'action': 'Include more role-relevant detail; target around 300-600 words for stronger ATS evidence.',
+                'impact': 'Improves depth and match quality'
+            })
+        elif word_count > 900:
+            recommendations.append({
+                'priority': 'Medium',
+                'category': 'Formatting',
+                'action': 'Avoid overly long resumes; trim to 1-2 pages and keep only role-relevant achievements.',
+                'impact': 'Improves recruiter readability'
+            })
+
+        if total_score < 65:
+            recommendations.append({
+                'priority': 'High',
+                'category': 'Structure',
+                'action': 'Include Contact, Summary, Skills, Experience, Projects, and Education in this exact order.',
+                'impact': 'Fastest way to increase low ATS score'
             })
             
         return recommendations
@@ -657,12 +861,88 @@ class ProfessionalATSAnalyzer:
 
     def detailed_keyword_analysis(self, resume_content, job_description):
         """Detailed keyword analysis"""
+        job_keywords = self.extract_weighted_keywords(job_description)
+        resume_keywords = self.extract_resume_keywords(resume_content)
+        resume_set = {k.lower() for k in resume_keywords}
+
+        matched = []
+        missing = []
+        for key in job_keywords.keys():
+            key_l = key.lower()
+            if key_l in resume_set or self.check_contextual_match(key, resume_content):
+                matched.append(key)
+            else:
+                missing.append(key)
+
+        total = len(job_keywords)
+        match_percentage = round((len(matched) / total) * 100, 1) if total else 0.0
+
+        words = re.findall(r'\b\w+\b', str(resume_content or '').lower())
+        word_count = max(1, len(words))
+        keyword_hits = 0
+        for kw in job_keywords.keys():
+            kw_words = str(kw).lower().split()
+            if len(kw_words) == 1:
+                keyword_hits += words.count(kw_words[0])
+            else:
+                keyword_hits += str(resume_content or '').lower().count(str(kw).lower())
+
+        density = (keyword_hits / word_count) * 100
+        if density > 7.0:
+            density_score = 'Over-optimized (possible keyword stuffing)'
+        elif density < 1.0:
+            density_score = 'Too low'
+        else:
+            density_score = 'Optimal'
+
         return {
-            'matched_keywords': 12,
-            'total_job_keywords': 20,
-            'match_percentage': 60,
-            'density_score': 'Optimal',
-            'top_missing': ['React', 'Node.js', 'AWS']
+            'matched_keywords': len(matched),
+            'total_job_keywords': total,
+            'match_percentage': match_percentage,
+            'density_score': density_score,
+            'top_missing': missing[:8],
+            'top_matched': matched[:8],
+        }
+
+    def build_cv_improvement_guide(self, total_score, resume_content, missing_elements, keyword_analysis):
+        """Build explicit include/avoid guidance for low ATS scores."""
+        content = str(resume_content or '')
+        content_lower = content.lower()
+        include_items = []
+        avoid_items = []
+
+        sections = {
+            'summary': bool(re.search(r'\bsummary\b|\bprofile\b', content_lower)),
+            'experience': bool(re.search(r'\bexperience\b', content_lower)),
+            'skills': bool(re.search(r'\bskills?\b', content_lower)),
+            'projects': bool(re.search(r'\bprojects?\b', content_lower)),
+            'education': bool(re.search(r'\beducation\b', content_lower)),
+            'contact': bool(re.search(r'@', content) and re.search(r'\d{10}|\+\d', content)),
+        }
+
+        for section_name, present in sections.items():
+            if not present:
+                include_items.append(f"Include a {section_name.title()} section with role-relevant content.")
+
+        if missing_elements:
+            include_items.append(f"Include these missing role keywords naturally: {', '.join(missing_elements[:6])}.")
+
+        if not re.search(r'\b\d+(?:%|\+|x)?\b', content):
+            include_items.append('Include measurable achievements (%, counts, savings, user impact) in experience bullets.')
+
+        if keyword_analysis.get('density_score') == 'Over-optimized (possible keyword stuffing)':
+            avoid_items.append('Avoid repeating the same keywords excessively in a single section.')
+
+        avoid_items.append('Avoid tables, images, icons, and multi-column layouts that ATS may parse poorly.')
+        avoid_items.append('Avoid generic objective statements without tools, skills, or outcomes.')
+        avoid_items.append('Avoid long paragraphs; keep bullet points concise and impact-focused.')
+
+        if float(total_score or 0) < 70:
+            include_items.insert(0, 'Include role-specific summary + skills + projects + experience before applying.')
+
+        return {
+            'include': include_items[:10],
+            'avoid': avoid_items[:8],
         }
 
     def estimate_competitive_standing(self, score):

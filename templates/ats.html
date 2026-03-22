@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CV Analyzer - Check & Improve Your ATS Score</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/ats.css') }}">
 
 </head>
 <body>
+    {% include 'candidate/navbar.html' %}
     <div class="container">
         <div class="header">
             <h1>CV Analyzer</h1>
@@ -25,6 +27,29 @@
                 <p class="file-info">Supported formats: PDF, DOC, DOCX</p>
                 <p class="fileName" id="fileName">No file selected</p>
                 <input type="file" id="fileInput" accept=".pdf,.doc,.docx">
+            </div>
+
+            <div class="analysis-config">
+                <div class="config-item">
+                    <label for="jobRole">Target Job Role</label>
+                    <select id="jobRole">
+                        <option value="general_internship">General Internship</option>
+                        <option value="software_engineer">Software Engineer</option>
+                        <option value="frontend_developer">Frontend Developer</option>
+                        <option value="backend_developer">Backend Developer</option>
+                        <option value="data_analyst">Data Analyst</option>
+                        <option value="data_scientist">Data Scientist</option>
+                        <option value="devops_engineer">DevOps Engineer</option>
+                        <option value="ui_ux_designer">UI/UX Designer</option>
+                        <option value="project_manager">Project Manager</option>
+                        <option value="hr_recruiter">HR/Recruiter</option>
+                        <option value="marketing_specialist">Marketing Specialist</option>
+                    </select>
+                </div>
+                <div class="config-item">
+                    <label for="jobDescription">Job Description (Recommended)</label>
+                    <textarea id="jobDescription" rows="5" placeholder="Paste the job description here for more accurate role-based ATS scoring..."></textarea>
+                </div>
             </div>
             
             <div class="button-section">

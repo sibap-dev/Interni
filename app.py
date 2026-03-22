@@ -2990,6 +2990,7 @@ def analyze_cv():
         
         cv_file = request.files['cv_file']
         job_description = request.form.get('job_description', '')
+        job_role = str(request.form.get('job_role', '') or '').strip().lower()
         
         if not cv_file.filename:
             return jsonify({'error': 'No file selected'}), 400
@@ -3003,7 +3004,8 @@ def analyze_cv():
         analysis_result = ats_analyzer.calculate_professional_ats_score(
             file_path, 
             job_description, 
-            user_profile=user
+            user_profile=user,
+            job_role=job_role
         )
         
         # Clean up temporary file
@@ -3504,18 +3506,48 @@ def company_home():
         notifications = notifications_response.data if notifications_response.data else []
         print(f"🔔 Notifications count: {len(notifications)}")
         
-        # Get recent internships
-        print("💼 Getting recent internships...")
-        internships_response = supabase.table('internships').select('*').eq('company_id', company_id).order('created_at', desc=True).limit(5).execute()
-        internships = internships_response.data if internships_response.data else []
-        print(f"💼 Internships count: {len(internships)}")
+        # Get recently posted ACTIVE internships for dashboard.
+        print("💼 Getting active internships...")
+        recent_internships = []
+        try:
+            active_response = (
+                supabase.table('internships')
+                .select('*')
+                .eq('company_id', company_id)
+                .ilike('status', 'active')
+                .order('created_at', desc=True)
+                .limit(8)
+                .execute()
+            )
+            recent_internships = active_response.data if active_response.data else []
+        except Exception as active_error:
+            print(f"⚠️ Active internships query fallback: {active_error}")
+
+        # Fallback for databases where status casing/format is inconsistent.
+        if not recent_internships:
+            fallback_response = (
+                supabase.table('internships')
+                .select('*')
+                .eq('company_id', company_id)
+                .order('created_at', desc=True)
+                .limit(25)
+                .execute()
+            )
+            all_recent = fallback_response.data if fallback_response.data else []
+            recent_internships = [
+                item for item in all_recent
+                if str(item.get('status', '')).strip().lower() == 'active'
+            ][:8]
+
+        print(f"💼 Active internships count: {len(recent_internships)}")
         
         print("✅ Rendering company home template...")
         return render_template('company/home.html', 
                              company=company, 
+                             company_name=company.get('company_name'),
                              stats=stats, 
-                             notifications=notifications,
-                             internships=internships,
+                             recent_notifications=notifications,
+                             recent_internships=recent_internships,
                              current_year=datetime.now().year)
         
     except Exception as e:

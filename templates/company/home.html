@@ -674,10 +674,6 @@
             <section class="welcome-section">
                 <h1>Welcome back, {{ company_name or 'Company' }}! 👋</h1>
                 <p>Find the perfect internship candidates using our AI-powered matching system. Streamline your hiring process and discover talented students from across the country.</p>
-                <a href="/company/internships/new" class="btn-primary">
-                    <i class="fas fa-plus"></i>
-                    Post New Internship
-                </a>
             </section>
 
             <!-- UPDATED - Dynamic stats section -->
@@ -719,7 +715,7 @@
                             <div class="notification-content">
                                 <div class="notification-title">{{ notification.title }}</div>
                                 <div class="notification-subtitle">{{ notification.message }}</div>
-                                <div class="notification-time">{{ notification.created_at.strftime('%B %d, %Y at %I:%M %p') }}</div>
+                                <div class="notification-time">{{ (notification.created_at|string).replace('T', ' ')[:19] if notification.created_at else 'Recent' }}</div>
                             </div>
                         </div>
                         {% endfor %}
@@ -773,10 +769,7 @@
                             <h4>No active internships</h4>
                         </div>
                         <div class="internship-meta">
-                            <span>Post your first internship to get started</span>
-                        </div>
-                        <div class="internship-actions">
-                            <a href="/company/internships/new" class="btn-primary">Post Internship</a>
+                            <span>No active internship is available right now.</span>
                         </div>
                     </div>
                     {% endif %}

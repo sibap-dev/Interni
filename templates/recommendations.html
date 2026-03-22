@@ -278,15 +278,7 @@
     </style>
 </head>
 <body>
-
-<!-- NAV -->
-<div class="nav-bar">
-    <div class="nav-brand"><i class="fas fa-briefcase"></i> PM Internship Scheme</div>
-    <div class="nav-actions">
-        <a href="{{ url_for('home') }}" class="nav-btn home-btn"><i class="fas fa-home"></i> Home</a>
-        <a href="{{ url_for('logout') }}" class="nav-btn logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
-    </div>
-</div>
+{% include 'candidate/navbar.html' %}
 
 <!-- HERO -->
 <div class="hero">
